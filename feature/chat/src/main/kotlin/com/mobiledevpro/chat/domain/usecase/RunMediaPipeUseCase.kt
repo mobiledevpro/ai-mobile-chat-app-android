@@ -20,6 +20,7 @@ package com.mobiledevpro.chat.domain.usecase
 import android.content.Context
 import android.util.Log
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
+import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
 import com.mobiledevpro.chat.domain.model.AIState
 import com.mobiledevpro.chat.domain.model.PromptWrapper
 import com.mobiledevpro.chat.domain.model.Skill
@@ -146,7 +147,6 @@ class RunMediaPipeUseCase(
         val options = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(modelFile.absolutePath)
             .setMaxTokens(MAX_INPUT_TOKENS)
-            .setMaxTopK(80) //If you find the summarization is too slow, reduce setTopK to a smaller number
             .build()
 
         llmInference = LlmInference.createFromOptions(context, options)
@@ -190,7 +190,7 @@ class RunMediaPipeUseCase(
                 val userText = chatMessages.last().text
 
                 val finalPrompt: String = PromptWrapper.createPrompt(
-                    skillsTxt = skillsText,
+                    skillsTxt = null, //skillsText,
                     userMessage = userText,
                     history = chatMessages.toDomain()
                 )
@@ -265,19 +265,49 @@ class RunMediaPipeUseCase(
         }
 
     private fun generateResponseFlow(prompt: String): Flow<String> = callbackFlow {
-        llmInference?.generateResponseAsync(prompt) { partialResult, done ->
+        val llm = llmInference ?: run {
+            close()
+            return@callbackFlow
+        }
+
+        // 1. Create session with deterministic options
+        // The default values (Temp: 0.8, TopK: 40) are too "creative" for strict tool triggering
+        val sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
+            .setTemperature(0.1f) // CRITICAL: Forces adherence to prompt rules
+            .setTopK(1)
+            .build()
+
+        // 2. Create the session
+        val session = LlmInferenceSession.createFromOptions(llm, sessionOptions)
+
+        // 3. Add the prompt
+        session.addQueryChunk(prompt)
+
+        // 4. Generate the response
+        session.generateResponseAsync { partialResult, done ->
             Log.d(
                 this@RunMediaPipeUseCase.javaClass.name,
                 "generateResponseFlow: partialResult - $partialResult | done = $done"
             )
-            if (done)
-                close()
-            else
+
+
+            if (partialResult.isNotEmpty())
                 trySend(partialResult)
+
+            if (done) {
+                // DO NOT call session.close() here as it can cause JNI errors 
+                // while the callback is still active. 
+                // close() below will trigger the cleanup in awaitClose.
+                close()
+            }
         }
 
         awaitClose {
-            // No op
+            try {
+                session.close()
+            } catch (e: Exception) {
+                // Ignore if already closed
+            }
         }
     }
 
