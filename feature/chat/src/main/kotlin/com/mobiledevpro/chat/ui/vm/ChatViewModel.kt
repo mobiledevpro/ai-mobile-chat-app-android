@@ -21,6 +21,10 @@ import androidx.lifecycle.viewModelScope
 import com.mobiledevpro.chat.domain.model.AIState
 import com.mobiledevpro.chat.domain.model.ChatMessage
 import com.mobiledevpro.chat.domain.model.ChatMessageCollection
+import com.mobiledevpro.chat.domain.model.Skill
+import com.mobiledevpro.chat.domain.model.SkillType
+import com.mobiledevpro.chat.domain.model.toLocalPath
+import com.mobiledevpro.chat.domain.model.toName
 import com.mobiledevpro.chat.domain.usecase.ClearHistoryUseCase
 import com.mobiledevpro.chat.domain.usecase.GetChatMessagesUseCase
 import com.mobiledevpro.chat.domain.usecase.RunMediaPipeUseCase
@@ -95,7 +99,8 @@ class ChatViewModel(
                     list = chatMessages + listOfNotNull(newMessage)
                 ),
                 aiState = aiState,
-                warningMessage = errorMessage
+                warningMessage = errorMessage,
+                availableSkills = getAvailableSkills()
             )
 
         }.flowOn(Dispatchers.IO)
@@ -134,4 +139,12 @@ class ChatViewModel(
         }
     }
 
+    private fun getAvailableSkills(): List<Skill> =
+        SkillType.entries.map { skillType ->
+            Skill(
+                type = skillType,
+                name = skillType.toName(),
+                path = skillType.toLocalPath()
+            )
+        }
 }

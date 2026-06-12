@@ -22,7 +22,12 @@ import android.util.Log
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.mobiledevpro.chat.domain.model.AIState
 import com.mobiledevpro.chat.domain.model.PromptWrapper
+import com.mobiledevpro.chat.domain.model.Skill
+import com.mobiledevpro.chat.domain.model.SkillType
+import com.mobiledevpro.chat.domain.model.toLocalPath
+import com.mobiledevpro.chat.domain.model.toName
 import com.mobiledevpro.chat.mapper.toDomain
+import com.mobiledevpro.chat.util.SkillParser
 import com.mobiledevpro.coroutines.BaseCoroutinesFLowUseCase
 import com.mobiledevpro.coroutines.None
 import com.mobiledevpro.database.AppDatabase
@@ -64,7 +69,8 @@ private const val CHAR_COUNT_PER_TOKEN = 5 // 1 token is approximately equal to 
 class RunMediaPipeUseCase(
     database: AppDatabase,
     private val context: Context,
-    private val fileStoreManager: FileStoreManager
+    private val fileStoreManager: FileStoreManager,
+    private val skillParser: SkillParser
 ) : BaseCoroutinesFLowUseCase<None, AIState>(Dispatchers.IO) {
 
     private var llmInference: LlmInference? = null
@@ -74,6 +80,11 @@ class RunMediaPipeUseCase(
     private var jobMessageUpdate: Job? = null
 
     private val channelMessageForUpdate = Channel<ChatMessageEntity>(Channel.CONFLATED)
+    private var skillsText: String? = null
+
+    init {
+        skillsText = loadAvailableSkills()
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun buildUseCaseFlow(params: None?): Flow<AIState> =
@@ -167,7 +178,6 @@ class RunMediaPipeUseCase(
             // Otherwise handleMessages() will be called in a loop
             markUserMessageAnswered(lastUserMessage.timeCreated)
 
-
             coroutineScope {
                 jobMessageUpdate = jobHandleAIMessageUpdate(answerCreatedAt)
 
@@ -180,7 +190,7 @@ class RunMediaPipeUseCase(
                 val userText = chatMessages.last().text
 
                 val finalPrompt: String = PromptWrapper.createPrompt(
-                    skillsTxt = null, // No skills for now
+                    skillsTxt = skillsText,
                     userMessage = userText,
                     history = chatMessages.toDomain()
                 )
@@ -270,5 +280,19 @@ class RunMediaPipeUseCase(
             // No op
         }
     }
+
+    private fun loadAvailableSkills(): String? =
+        if (SkillType.entries.isEmpty())
+            null
+        else
+            SkillType.entries.map { skillType ->
+                Skill(
+                    type = skillType,
+                    name = skillType.toName(),
+                    path = skillType.toLocalPath()
+                )
+            }.joinToString(separator = "\n\n") { skill ->
+                skillParser.loadSkill(skill)
+            }
 
 }

@@ -29,13 +29,13 @@ object PromptWrapper {
 
     fun createPrompt(skillsTxt: String?, userMessage: String, history: List<ChatMessage>): String {
         return if (skillsTxt.isNullOrEmpty()) {
-            createDefaultPrompt(userMessage, history)
+            createDefaultPrompt(history)
         } else {
             createPromptWithSkills(skillsTxt, userMessage)
         }
     }
 
-    private fun createDefaultPrompt(userMessage: String, history: List<ChatMessage>): String =
+    private fun createDefaultPrompt(history: List<ChatMessage>): String =
         StringBuilder().apply {
             // Optional: Add a simple system orientation prompt if needed
             append("${START_TURN}user\nYou are a local AI assistant.${END_TURN}\n")
