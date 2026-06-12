@@ -3,9 +3,9 @@ plugins {
 }
 
 dependencies {
-    implementation(libs.pdfbox)
     implementation(libs.mediapipe)
     implementation(libs.documentfile)
     implementation(projects.core.filestore)
     implementation(projects.core.database)
+    implementation(projects.feature.tooling)
 }

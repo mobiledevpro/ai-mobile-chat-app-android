@@ -47,8 +47,8 @@ espresso-core = "3.6.1"
 # 3rd party libs
 lottie = "6.6.7"
 desugaring = "2.1.5"
-pdfbox = "2.0.27.0"
 mediapipe = "0.10.29"
+jsoup = "1.17.2"
 
 [plugins]
 
@@ -104,8 +104,8 @@ espresso-core = { group = "androidx.test.espresso", name = "espresso-core", vers
 
 #3rd party libs
 lottie = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
-pdfbox = { module = "com.tom-roush:pdfbox-android", version.ref = "pdfbox" }
 mediapipe = { module = "com.google.mediapipe:tasks-genai", version.ref = "mediapipe" }
+jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 
 
 # Koin for dependency injection

@@ -17,11 +17,12 @@
  */
 package com.mobiledevpro.chat.domain.usecase
 
-import android.content.ContentResolver
 import android.content.Context
 import android.util.Log
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.mobiledevpro.chat.domain.model.AIState
+import com.mobiledevpro.chat.domain.model.PromptWrapper
+import com.mobiledevpro.chat.mapper.toDomain
 import com.mobiledevpro.coroutines.BaseCoroutinesFLowUseCase
 import com.mobiledevpro.coroutines.None
 import com.mobiledevpro.database.AppDatabase
@@ -79,17 +80,17 @@ class RunMediaPipeUseCase(
         initAi()
             .flatMapLatest { aIState: AIState ->
                 if (aIState == AIState.READY)
-                    getUserMessages()
+                    getChatMessages()
                         .distinctUntilChanged()
-                        .flatMapConcat { userMessages: List<ChatMessageEntity> ->
+                        .flatMapConcat { chatMessages: List<ChatMessageEntity> ->
 
                             val unAnsweredUserMessages =
-                                userMessages.filter { !it.answered && it.isUserMessage }
+                                chatMessages.filter { !it.answered && it.isUserMessage }
 
                             if (unAnsweredUserMessages.isEmpty())
                                 flowOf(AIState.COMPLETED)
                             else
-                                handleUserMessages(userMessages = userMessages)
+                                handleChatMessages(chatMessages = chatMessages)
 
                         }
                 else
@@ -101,9 +102,8 @@ class RunMediaPipeUseCase(
         jobMessageUpdate?.cancel()
     }
 
-    private fun getUserMessages(): Flow<List<ChatMessageEntity>> =
-        dao.selectUserMessages()
-
+    private fun getChatMessages(): Flow<List<ChatMessageEntity>> =
+        dao.selectAllMessages()
 
     /**
      * Initialize LLM
@@ -153,13 +153,13 @@ class RunMediaPipeUseCase(
      * so it's not include into the messages list
      */
     @OptIn(FlowPreview::class)
-    private fun handleUserMessages(userMessages: List<ChatMessageEntity>): Flow<AIState> =
+    private fun handleChatMessages(chatMessages: List<ChatMessageEntity>): Flow<AIState> =
         flow {
             emit(AIState.THINKING)
 
             // Handle the last user's message
             val lastUserMessage: ChatMessageEntity =
-                userMessages.last { !it.answered && it.isUserMessage }
+                chatMessages.last { !it.answered && it.isUserMessage }
 
             val answerCreatedAt = System.currentTimeMillis()
 
@@ -177,10 +177,13 @@ class RunMediaPipeUseCase(
                     text = ""
                 )
 
-                val userText = userMessages.last().text
+                val userText = chatMessages.last().text
 
-                var finalPrompt: String = userText
-
+                val finalPrompt: String = PromptWrapper.createPrompt(
+                    skillsTxt = null, // No skills for now
+                    userMessage = userText,
+                    history = chatMessages.toDomain()
+                )
 
                 emit(AIState.THINKING)
 
@@ -190,8 +193,6 @@ class RunMediaPipeUseCase(
                     this@RunMediaPipeUseCase.javaClass.name,
                     "handleUserMessages: prompt : \n$finalPrompt"
                 )
-
-                // GENERATE THE FINAL SUMMARY
 
                 jobGenerateCompletion = async {
                     generateResponseFlow(finalPrompt)

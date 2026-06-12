@@ -102,6 +102,4 @@ dependencies {
     implementation(projects.core.navigation)
     implementation(projects.core.filestore)
     implementation(projects.core.database)
-
-    implementation(libs.pdfbox)
 }
