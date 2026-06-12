@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">AI Chat</string>
+
+    <string name="label_allow">Allow</string>
+    <string name="label_settings">Settings</string>
+    <string name="label_version">Version %s</string>
+    <string name="label_pick">Pick PDF</string>
+    <string name="label_ask_ai">Type prompt&#8230;</string>
+
+    <string name="button_save">Save</string>
+    <string name="button_cancel">Cancel</string>
+
+    <string name="message_chat_with_llm">Chat with on-device LLM</string>
+    <string name="message_initializing">Initializing… Please wait</string>
+    <string name="message_downloading">Downloading AI model… Please wait</string>
+    <string name="message_thinking">Thinking…</string>
+    <string name="message_thinking_chunks">Thinking… Analyzing chunks</string>
+    <string name="message_extraction">Extracting text…</string>
+
+
+</resources>

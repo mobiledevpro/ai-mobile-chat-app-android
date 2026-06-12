@@ -1,0 +1,150 @@
+[versions]
+# App
+app-version-code = "1"
+app-version-name = "1.0.0"
+sdk-min = "29"
+sdk-target = "36"
+sdk-compile = "36"
+
+app-database-version = "1"
+app-database-name = "aichat.db"
+
+
+# Plugins
+android-gradle = "8.11.1"
+kotlin = "2.2.0"
+ksp = "2.2.0-2.0.2"
+kotlin-coroutines = "1.10.2"
+kotlin-serialization = "1.4.1"
+
+
+# Libs
+android-core-ktx = "1.16.0"
+activity = "1.10.1"
+navigation = "2.9.2"
+room = "2.7.2"
+lifecycle = "2.9.2"
+compose-bom = "2025.07.00"
+
+material3 = "1.4.0"
+koin = "4.1.1"
+koin-compose = "4.1.1"
+coroutines-android = "1.10.2"
+splash-screen = "1.1.0-rc01"
+google-fonts = "1.9.1"
+documentfile = "1.0.1"
+
+# test libraries
+test-junit = "4.13.2"
+test-mockk = "1.14.5"
+test-coroutines-flow = "1.2.1"
+
+# android test libraries
+test-android-runner = "1.6.2"
+junit = "1.2.1"
+espresso-core = "3.6.1"
+
+# 3rd party libs
+lottie = "6.6.7"
+desugaring = "2.1.5"
+pdfbox = "2.0.27.0"
+mediapipe = "0.10.29"
+
+[plugins]
+
+android-application = { id = "com.android.application", version.ref = "android-gradle" }
+android-library = { id = "com.android.library", version.ref = "android-gradle" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
+kotlin-parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "kotlin" }
+kotlin-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" } # Compose Compiler plugin was added in Kotlin 2.0
+
+[libraries]
+
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "android-core-ktx" }
+activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity" }
+activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref = "activity" }
+lyfecycle-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+lyfecycle-runtime = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
+lyfecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
+navigation = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+gradle = { module = "com.android.tools.build:gradle", version.ref = "android-gradle" }
+gradle-api = { module = "com.android.tools.build:gradle-api", version.ref = "android-gradle" }
+coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines-android" }
+desugaring = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugaring" }
+splash-screen = { module = "androidx.core:core-splashscreen", version.ref = "splash-screen" }
+google-fonts = { module = "androidx.compose.ui:ui-text-google-fonts", version.ref = "google-fonts" }
+documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
+
+# Compose
+compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
+compose-ui = { group = "androidx.compose.ui", name = "ui" }
+compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+compose-ui-animation = { group = "androidx.compose.animation", name = "animation" }
+compose-ui-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+compose-ui-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
+compose-ui-util = { group = "androidx.compose.ui", name = "ui-util" }
+
+# test libraries
+test-junit = { module = "junit:junit", version.ref = "test-junit" }
+test-kotlin = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+test-kotlin-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlin-coroutines" }
+test-mockk = { module = "io.mockk:mockk", version.ref = "test-mockk" }
+test-coroutines-flow = { module = "app.cash.turbine:turbine", version.ref = "test-coroutines-flow" }
+
+# Android test libraries
+test-android-compose = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+test-android-runner = { module = "androidx.test:runner", version.ref = "test-android-runner" }
+junit = { group = "androidx.test.ext", name = "junit", version.ref = "junit" }
+espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso-core" }
+
+#3rd party libs
+lottie = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
+pdfbox = { module = "com.tom-roush:pdfbox-android", version.ref = "pdfbox" }
+mediapipe = { module = "com.google.mediapipe:tasks-genai", version.ref = "mediapipe" }
+
+
+# Koin for dependency injection
+koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
+koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
+koin-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin-compose" }
+koin-compose-navigation = { module = "io.insert-koin:koin-androidx-compose-navigation", version.ref = "koin-compose" }
+koin-test = { module = "io.insert-koin:koin-test", version.ref = "koin" }
+koin-test-junit = { module = "io.insert-koin:koin-test-junit4", version.ref = "koin" }
+
+room = { module = "androidx.room:room-runtime", version.ref = "room" }
+room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+room-ktx = { module = "androidx.room:room-ktx", version = "room" }
+
+[bundles]
+compose = [
+    "compose-ui",
+    "compose-ui-graphics",
+    "compose-ui-animation",
+    "compose-ui-preview",
+    "compose-material3",
+    "activity-compose",
+    "compose-ui-util"
+]
+
+compose-debug = [
+    "compose-ui-tooling",
+    "compose-ui-manifest"
+]
+
+lifecycle = [
+    "lyfecycle-compose",
+    "lyfecycle-runtime",
+    "lyfecycle-runtime-compose"
+]
+
+koin = [
+    "koin-core",
+    "koin-android",
+    "koin-compose",
+    "koin-compose-navigation"
+]

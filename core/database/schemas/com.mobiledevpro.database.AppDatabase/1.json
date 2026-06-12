@@ -1,0 +1,66 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "4515577f8fa22c2a44f5135635d1fea7",
+    "entities": [
+      {
+        "tableName": "chat_message",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`timeCreated` INTEGER NOT NULL, `text` TEXT NOT NULL, `isUserMessage` INTEGER NOT NULL, `notSent` INTEGER NOT NULL, `answered` INTEGER NOT NULL, PRIMARY KEY(`timeCreated`))",
+        "fields": [
+          {
+            "fieldPath": "timeCreated",
+            "columnName": "timeCreated",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "text",
+            "columnName": "text",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isUserMessage",
+            "columnName": "isUserMessage",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notSent",
+            "columnName": "notSent",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "answered",
+            "columnName": "answered",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "timeCreated"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_chat_message_timeCreated",
+            "unique": false,
+            "columnNames": [
+              "timeCreated"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chat_message_timeCreated` ON `${TABLE_NAME}` (`timeCreated`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4515577f8fa22c2a44f5135635d1fea7')"
+    ]
+  }
+}

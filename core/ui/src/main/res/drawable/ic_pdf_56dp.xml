@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="56dp"
+    android:height="56dp"
+    android:viewportWidth="56"
+    android:viewportHeight="56">
+
+    <!-- Page shape -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,4H18c-3.3,0 -6,2.7 -6,6v36c0,3.3 2.7,6 6,6h20c3.3,0 6,-2.7 6,-6V14L38,4z"
+        android:strokeWidth="1"
+        android:strokeColor="#D3D3D3" />
+
+    <!-- Page fold corner -->
+    <path
+        android:fillColor="#F2F2F2"
+        android:pathData="M38,4v10h10L38,4z" />
+
+    <!-- Text placeholder lines -->
+    <path
+        android:fillAlpha="0.6"
+        android:fillColor="#D0D0D0"
+        android:pathData="M16,20h24v2H16z" />
+
+    <path
+        android:fillAlpha="0.6"
+        android:fillColor="#D0D0D0"
+        android:pathData="M16,25h18v2H16z" />
+
+    <path
+        android:fillAlpha="0.6"
+        android:fillColor="#D0D0D0"
+        android:pathData="M16,30h22v2H16z" />
+
+    <!-- Red PDF bar -->
+    <path
+        android:fillColor="#E53935"
+        android:pathData="M10,38h36v12H10z" />
+
+    <!-- PDF text (vector shapes instead of font for compatibility) -->
+
+    <!-- P -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M16,41h3c2,0 3,1 3,3s-1,3 -3,3h-3v-6zM18,43v2h1c1,0 1,-0.5 1,-1s0,-1 -1,-1h-1z"/>
+
+    <!-- D -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M23,41h3.2c2,0 3.8,1.2 3.8,3.5s-1.8,3.5 -3.8,3.5H23v-7zM25,43v3h1c1.2,0 2,-0.7 2,-1.5s-0.8,-1.5 -2,-1.5h-1z"/>
+
+    <!-- F -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M33,41h6v2h-4v1.5h3.5v2H35v1.5h4v2h-6v-9z"/>
+</vector>
