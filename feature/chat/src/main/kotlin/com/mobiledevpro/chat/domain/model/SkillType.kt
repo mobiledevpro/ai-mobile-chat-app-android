@@ -23,8 +23,8 @@ package com.mobiledevpro.chat.domain.model
  *
  */
 enum class SkillType {
-    WEB_SEARCH,
-    CALENDAR_SCHEDULE
+    CALENDAR_SCHEDULE,
+    WEB_SEARCH
 }
 
 fun SkillType.toName(): String =

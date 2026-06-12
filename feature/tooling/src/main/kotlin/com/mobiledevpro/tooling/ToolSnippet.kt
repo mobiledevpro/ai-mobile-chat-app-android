@@ -17,6 +17,7 @@
  */
 package com.mobiledevpro.tooling
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
@@ -36,39 +37,70 @@ object ToolSnippet {
      */
     suspend fun fetchSearchSnippet(query: String): String = withContext(Dispatchers.IO) {
         try {
-            // 1. URL-encode the query parameters to handle spaces and special characters safely
             val encodedQuery = URLEncoder.encode(query, "UTF-8")
-            val searchUrl = "https://www.google.com/search?q=$encodedQuery"
 
-            // 2. Connect to the web server and spoof a real Chrome browser user-agent
-            val document = Jsoup.connect(searchUrl)
-                .userAgent("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
-                .timeout(10000) // 10 seconds timeout safety barrier
-                .get()
+            // Try Google first with a configuration designed for basic HTML
+            val googleUrl = "https://www.google.com/search?q=$encodedQuery&hl=en&gbv=1&gl=us"
 
-            // 3. Select target CSS classes where Google encapsulates snippet summaries
-            // .VwiC3b is commonly used on modern mobile/desktop layouts
-            // .kCrYT is often used on basic/legacy fallback HTML layouts
-            val snippets = document.select(".VwiC3b, .kCrYT")
+            //Log.d("ToolSnippet", "fetchSearchSnippet: $googleUrl")
+
+            val response = Jsoup.connect(googleUrl)
+                // Using a bot-like User-Agent often forces Google to serve the simplest possible HTML
+                .userAgent("Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)")
+                .header("Accept-Language", "en-US,en;q=0.9")
+                .header(
+                    "Accept",
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+                )
+                .header("Referer", "https://www.google.com/")
+                .cookie("CONSENT", "YES+cb.20210328-17-p0.en+FX+410")
+                .timeout(10000)
+                .followRedirects(true)
+                .execute()
+
+            var document = response.parse()
+            val bodyText = document.text()
+
+            // Check if Google is blocking us or insisting on JavaScript
+            if (bodyText.contains("JavaScript") || bodyText.contains("not redirected") || document.select(
+                    ".VwiC3b, .kCrYT, .BNeawe"
+                ).isEmpty()
+            ) {
+                Log.d("ToolSnippet", "Google search restricted. Falling back to DuckDuckGo HTML.")
+
+                // Fallback to DuckDuckGo HTML (designed for non-JS environments)
+                val ddgUrl = "https://html.duckduckgo.com/html/?q=$encodedQuery"
+                document = Jsoup.connect(ddgUrl)
+                    .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
+                    .timeout(10000)
+                    .get()
+            }
+
+            //  Log.d("ToolSnippet", "Parsing results from: ${document.body()}")
+
+            // CSS selectors for both Google and DuckDuckGo
+            val selectors = arrayOf(".BNeawe", ".kCrYT", ".result__snippet", "span.hgKElc", "div.g")
+            val snippets = document.select(selectors.joinToString(", "))
 
             if (snippets.isNotEmpty()) {
-                // 4. Extract text from the top 3 results, clean whitespace, and join them
-                snippets.take(3)
+                snippets
                     .map { it.text().trim() }
-                    .filter { it.isNotEmpty() }
+                    .filter { it.length > 10 }
+                    .distinct()
+                    .take(5)
                     .joinToString("\n\n")
             } else {
-                // Fallback: If classes changed, pull paragraphs or description metadata strings
-                val fallbackText = document.select("span").take(5).joinToString(" ") { it.text() }
+                // Last ditch effort: extract any content from paragraphs
+                val fallbackText = document.select("p, .result__snippet").take(5)
+                    .joinToString("\n\n") { it.text() }
                 if (fallbackText.length > 50) {
-                    fallbackText.take(300) + "..."
+                    fallbackText
                 } else {
-                    "No direct text summaries could be parsed from the web layout."
+                    "No direct search results could be parsed. The search engine might be blocking the request."
                 }
             }
         } catch (e: Exception) {
-            // Gracefully catch network loss, timeouts, or parsing errors
-            "Network search engine failed: ${e.localizedMessage ?: "Unknown error"}"
+            "Network search failed: ${e.localizedMessage ?: "Unknown error"}"
         }
     }
 }
