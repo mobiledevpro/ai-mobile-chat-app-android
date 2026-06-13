@@ -48,7 +48,7 @@ espresso-core = "3.6.1"
 # 3rd party libs
 lottie = "6.6.7"
 desugaring = "2.1.5"
-mediapipe = "0.10.29"
+mediapipe = "0.10.35"
 jsoup = "1.17.2"
 okhttp = "5.4.0"
 

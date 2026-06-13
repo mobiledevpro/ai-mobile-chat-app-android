@@ -183,6 +183,7 @@ class RunMediaPipeUseCase(
         val options = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(modelFile.absolutePath)
             .setMaxTokens(MAX_INPUT_TOKENS)
+            // .setPreferredBackend(LlmInference.Backend.GPU)
             .build()
 
         llmInference = LlmInference.createFromOptions(context, options)

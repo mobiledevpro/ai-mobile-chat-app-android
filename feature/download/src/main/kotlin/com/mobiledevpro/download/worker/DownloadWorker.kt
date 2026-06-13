@@ -54,7 +54,10 @@ class DownloadWorker(
         val client = OkHttpClient.Builder().build()
         val request = Request.Builder()
             .url(REPO_URL)
-            // .addHeader("Authorization", "Bearer hf_xxx") // Uncomment if accessing gated models
+            .addHeader(
+                "Authorization",
+                "Bearer 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"
+            ) // TODO: use you own HuggingFace token and story is securely
             .build()
 
         return try {
