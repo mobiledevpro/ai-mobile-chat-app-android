@@ -34,6 +34,7 @@ object DownloadManagerHelper {
     // https://huggingface.co/$modelId/resolve/$commitHash/$modelFile?download=true
     const val REPO_URL =
         "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm?download=true"
+    const val WORKER_TAG = "LLM_DOWNLOAD_TASK"
 
     private val constraints = Constraints.Builder()
         // Force Wi-Fi connection to safeguard data plans
@@ -43,7 +44,7 @@ object DownloadManagerHelper {
 
     val downloadWorkRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
         .setConstraints(constraints)
-        .addTag("LLM_DOWNLOAD_TASK")
+        .addTag(WORKER_TAG)
         .build()
 
     val llmLocalFileName = "gemma_4_e2b.litertlm"

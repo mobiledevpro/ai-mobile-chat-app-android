@@ -35,4 +35,5 @@ fun AIState.isBusy(): Boolean =
             this == AIState.INITIALIZING ||
             this == AIState.THINKING ||
             this == AIState.SUMMARIZING_CHUNKS ||
-            this == AIState.EXTRACTING_TEXT
+            this == AIState.EXTRACTING_TEXT ||
+            this == AIState.ERROR

@@ -99,6 +99,11 @@ class ChatViewModel(
 
             Log.d(
                 this@ChatViewModel.javaClass.name,
+                "observeState: AI STATE: ${aiStateResult.getOrNull()}"
+            )
+
+            Log.d(
+                this@ChatViewModel.javaClass.name,
                 "observeState: downloadWorkerInfo: $downloadWorkerInfo"
             )
 

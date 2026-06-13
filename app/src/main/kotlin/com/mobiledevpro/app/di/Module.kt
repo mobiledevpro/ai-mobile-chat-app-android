@@ -20,15 +20,15 @@ package com.mobiledevpro.app.di
 import android.content.ContentResolver
 import androidx.work.WorkManager
 import com.mobiledevpro.database.AppDatabase
-import com.mobiledevpro.filestore.FileStoreManager
-import com.mobiledevpro.filestore.ImplFileStoreManager
+import com.mobiledevpro.filestore.di.coreFileStoreModule
 import com.mobiledevpro.ui.provider.ImplResourcesProvider
 import com.mobiledevpro.ui.provider.ResourcesProvider
-import org.koin.android.ext.koin.androidApplication
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
 val coreModule = module {
+    includes(coreFileStoreModule)
+
     single<ContentResolver> {
         androidContext().applicationContext.contentResolver
     }
@@ -37,15 +37,11 @@ val coreModule = module {
         ImplResourcesProvider(androidContext().resources)
     }
 
-    single<FileStoreManager> {
-        ImplFileStoreManager(androidApplication().applicationContext)
+    single {
+        WorkManager.getInstance(androidContext())
     }
 
-    single<WorkManager> {
-        WorkManager.getInstance(androidApplication().applicationContext)
-    }
-
-    single<AppDatabase> {
-        AppDatabase.buildDatabase(androidApplication().applicationContext)
+    single {
+        AppDatabase.buildDatabase(androidContext())
     }
 }

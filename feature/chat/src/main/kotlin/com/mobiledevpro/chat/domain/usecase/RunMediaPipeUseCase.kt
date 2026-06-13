@@ -19,6 +19,8 @@ package com.mobiledevpro.chat.domain.usecase
 
 import android.content.Context
 import android.util.Log
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
 import com.mobiledevpro.chat.domain.model.AIState
@@ -33,8 +35,11 @@ import com.mobiledevpro.coroutines.BaseCoroutinesFLowUseCase
 import com.mobiledevpro.coroutines.None
 import com.mobiledevpro.database.AppDatabase
 import com.mobiledevpro.database.entity.ChatMessageEntity
+import com.mobiledevpro.download.DownloadManagerHelper
+import com.mobiledevpro.download.DownloadManagerHelper.downloadWorkRequest
 import com.mobiledevpro.filestore.FileStoreManager
 import com.mobiledevpro.filestore.FileType
+import com.mobiledevpro.tooling.ToolSnippet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -49,10 +54,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flatMapConcat
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -63,7 +70,6 @@ import kotlinx.coroutines.launch
  *
  */
 
-private const val AI_MODEL_NAME = "Gemma3-1B-IT_multi-prefill-seq_q4_block128_ekv4096.task"
 private const val MAX_INPUT_TOKENS = 4000
 private const val CHAR_COUNT_PER_TOKEN = 5 // 1 token is approximately equal to 5 characters
 
@@ -71,7 +77,8 @@ class RunMediaPipeUseCase(
     database: AppDatabase,
     private val context: Context,
     private val fileStoreManager: FileStoreManager,
-    private val skillParser: SkillParser
+    private val skillParser: SkillParser,
+    private val workManager: WorkManager
 ) : BaseCoroutinesFLowUseCase<None, AIState>(Dispatchers.IO) {
 
     private var llmInference: LlmInference? = null
@@ -83,13 +90,46 @@ class RunMediaPipeUseCase(
     private val channelMessageForUpdate = Channel<ChatMessageEntity>(Channel.CONFLATED)
     private var skillsText: String? = null
 
+    private val downloadWorkInfoFlow: Flow<WorkInfo?> = workManager
+        .getWorkInfoByIdFlow(downloadWorkRequest.id)
+
     init {
         skillsText = loadAvailableSkills()
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
+    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     override fun buildUseCaseFlow(params: None?): Flow<AIState> =
-        initAi()
+        flow {
+            val isExists = fileStoreManager.isFileExists(
+                DownloadManagerHelper.llmLocalFileName,
+                FileType.TEMP_AI_MODEL
+            )
+            if (isExists) {
+                emit(WorkInfo.State.SUCCEEDED)
+            } else {
+                emitAll(downloadWorkInfoFlow.map { it?.state ?: WorkInfo.State.ENQUEUED })
+            }
+        }
+            .distinctUntilChanged()
+            .flatMapLatest { state ->
+                Log.d(this@RunMediaPipeUseCase.javaClass.name, "buildUseCaseFlow: $state")
+                when (state) {
+                    WorkInfo.State.ENQUEUED, WorkInfo.State.RUNNING -> flowOf(AIState.DOWNLOADING_MODEL)
+                    WorkInfo.State.SUCCEEDED -> initAi()
+                    WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> flowOf(AIState.ERROR)
+                    else -> {
+                        // Check if file exists anyway
+                        if (fileStoreManager.isFileExists(
+                                DownloadManagerHelper.llmLocalFileName,
+                                FileType.TEMP_AI_MODEL
+                            )
+                        )
+                            initAi()
+                        else
+                            flowOf(AIState.IDLE)
+                    }
+                }
+            }
             .flatMapLatest { aIState: AIState ->
                 if (aIState == AIState.READY)
                     getChatMessages()
@@ -122,27 +162,23 @@ class RunMediaPipeUseCase(
      *
      */
     private fun initAi(): Flow<AIState> = callbackFlow {
-        trySend(AIState.IDLE)
-
-        trySend(AIState.DOWNLOADING_MODEL)
+        trySend(AIState.INITIALIZING)
 
         // Copy model from assets to in-app storage
-        val modelFile = if (!fileStoreManager.isFileExists(AI_MODEL_NAME, FileType.TEMP_AI_MODEL)) {
-            fileStoreManager.copyAssetsFileToStorage(
-                assetFileName = AI_MODEL_NAME,
+        val modelFile =
+            fileStoreManager.getFile(
+                fileName = DownloadManagerHelper.llmLocalFileName,
                 fileType = FileType.TEMP_AI_MODEL
             )
-        } else
-            fileStoreManager.getFile(fileName = AI_MODEL_NAME, fileType = FileType.TEMP_AI_MODEL)
 
-        modelFile ?: throw RuntimeException("LLM file not found on the device")
+        if (modelFile == null) {
+            throw RuntimeException("LLM file not found on the device")
+        }
 
         Log.d(
             this@RunMediaPipeUseCase.javaClass.name,
             "initAi: modelFile = ${modelFile.absolutePath}"
         )
-
-        trySend(AIState.INITIALIZING)
 
         val options = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(modelFile.absolutePath)
@@ -190,7 +226,7 @@ class RunMediaPipeUseCase(
                 val userText = chatMessages.last().text
 
                 val finalPrompt: String = PromptWrapper.createPrompt(
-                    skillsTxt = null, //skillsText,
+                    skillsTxt = null,//skillsText,
                     userMessage = userText,
                     history = chatMessages.toDomain()
                 )
@@ -204,30 +240,13 @@ class RunMediaPipeUseCase(
                     "handleUserMessages: prompt : \n$finalPrompt"
                 )
 
-                jobGenerateCompletion = async {
-                    generateResponseFlow(finalPrompt)
-                        .collect { result ->
-                            synchronized(answerTextBuilder) {
-                                answerTextBuilder.append(result)
-                                channelMessageForUpdate.trySend(
-                                    aiAnswerMessage.copy(
-                                        text = answerTextBuilder.toString()
-                                    )
-                                )
-                            }
-                        }
-                }
-
-                try {
-                    jobGenerateCompletion?.await()
-                } finally {
-                    Log.d(
-                        this@RunMediaPipeUseCase.javaClass.name,
-                        "handleUserMessages: ${answerTextBuilder.toString()}"
-                    )
-                    jobMessageUpdate?.cancel()
+                // Moved generation and completion handling to a separate function
+                handlePrompt(finalPrompt, aiAnswerMessage, answerTextBuilder) {
                     this@flow.emit(AIState.COMPLETED)
                 }
+
+                // Handle SKILL triggers from LLM response
+                //  findAndHandleTriggers(answerTextBuilder.toString())
             }
 
         }
@@ -311,6 +330,40 @@ class RunMediaPipeUseCase(
         }
     }
 
+    private suspend fun handlePrompt(
+        finalPrompt: String,
+        aiAnswerMessage: ChatMessageEntity,
+        answerTextBuilder: StringBuilder,
+        onCompleted: suspend () -> Unit
+    ) {
+        coroutineScope {
+            jobGenerateCompletion = async {
+                generateResponseFlow(finalPrompt)
+                    .collect { result ->
+                        synchronized(answerTextBuilder) {
+                            answerTextBuilder.append(result)
+                            channelMessageForUpdate.trySend(
+                                aiAnswerMessage.copy(
+                                    text = answerTextBuilder.toString()
+                                )
+                            )
+                        }
+                    }
+            }
+
+            try {
+                jobGenerateCompletion?.await()
+            } finally {
+                Log.d(
+                    this@RunMediaPipeUseCase.javaClass.name,
+                    "handleUserMessages: ${answerTextBuilder.toString()}"
+                )
+                jobMessageUpdate?.cancel()
+                onCompleted()
+            }
+        }
+    }
+
     private fun loadAvailableSkills(): String? =
         if (SkillType.entries.isEmpty())
             null
@@ -324,5 +377,41 @@ class RunMediaPipeUseCase(
             }.joinToString(separator = "\n\n") { skill ->
                 skillParser.loadSkill(skill)
             }
+
+    private suspend fun findAndHandleTriggers(answer: String) {
+        Log.i(this@RunMediaPipeUseCase.javaClass.name, "findAndHandleTriggers: $answer")
+        // Implementation for finding and handling triggers
+        when {
+            answer.contains("TRIGGER_WEB_SEARCH", ignoreCase = true) -> {
+                val searchRegex = Regex("""TRIGGER_WEB_SEARCH\("([^"]+)"\)""")
+                val searchMatch = searchRegex.find(answer)
+                if (searchMatch != null) {
+                    val query = searchMatch.groupValues[1]
+                    ToolSnippet.fetchSearchSnippet(query).also { searchResult ->
+
+                        val followUpPrompt = """
+                The user asked a question requiring real-time data. 
+                Web search results for '$query':
+                ---
+                $searchResult
+                ---
+                Using this information, provide a short, conversational response to the user.
+                """.trimIndent()
+
+                        Log.i(
+                            this@RunMediaPipeUseCase.javaClass.name,
+                            "findAndHandleTriggers: followUpPrompt = $followUpPrompt"
+                        )
+
+                        //TODO: complete handling the prompt here
+                        /* handlePrompt(
+
+                          )
+  */
+                    }
+                }
+            }
+        }
+    }
 
 }

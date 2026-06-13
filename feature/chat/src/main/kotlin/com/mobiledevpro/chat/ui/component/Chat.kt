@@ -105,7 +105,7 @@ internal fun Chat(
 
                 promptQuery = ""
             },
-            isFocused = aiState == AIState.READY
+            isFocused = false
         )
     }
 
