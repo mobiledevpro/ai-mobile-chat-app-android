@@ -21,6 +21,7 @@ import android.app.Application
 import com.mobiledevpro.app.di.coreModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
+import org.koin.androidx.workmanager.koin.workManagerFactory
 import org.koin.core.context.startKoin
 
 
@@ -33,6 +34,7 @@ class App : Application() {
             androidLogger()
             // Reference Android context
             androidContext(this@App)
+            workManagerFactory()
             // Load common modules (feature modules will be loaded on demand)
             modules(coreModule)
         }

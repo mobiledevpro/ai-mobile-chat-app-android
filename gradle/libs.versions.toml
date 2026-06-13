@@ -33,6 +33,7 @@ coroutines-android = "1.10.2"
 splash-screen = "1.1.0-rc01"
 google-fonts = "1.9.1"
 documentfile = "1.0.1"
+workmanager = "2.9.0"
 
 # test libraries
 test-junit = "4.13.2"
@@ -49,6 +50,7 @@ lottie = "6.6.7"
 desugaring = "2.1.5"
 mediapipe = "0.10.29"
 jsoup = "1.17.2"
+okhttp = "5.4.0"
 
 [plugins]
 
@@ -77,6 +79,7 @@ desugaring = { module = "com.android.tools:desugar_jdk_libs", version.ref = "des
 splash-screen = { module = "androidx.core:core-splashscreen", version.ref = "splash-screen" }
 google-fonts = { module = "androidx.compose.ui:ui-text-google-fonts", version.ref = "google-fonts" }
 documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
+workmanager = { module = "androidx.work:work-runtime-ktx", version.ref = "workmanager" }
 
 # Compose
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
@@ -106,6 +109,8 @@ espresso-core = { group = "androidx.test.espresso", name = "espresso-core", vers
 lottie = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
 mediapipe = { module = "com.google.mediapipe:tasks-genai", version.ref = "mediapipe" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+okhttp-logging = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "okhttp" }
 
 
 # Koin for dependency injection
@@ -113,6 +118,7 @@ koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin-compose" }
 koin-compose-navigation = { module = "io.insert-koin:koin-androidx-compose-navigation", version.ref = "koin-compose" }
+koin-workmanager = { module = "io.insert-koin:koin-androidx-workmanager", version.ref = "koin" }
 koin-test = { module = "io.insert-koin:koin-test", version.ref = "koin" }
 koin-test-junit = { module = "io.insert-koin:koin-test-junit4", version.ref = "koin" }
 
@@ -146,5 +152,6 @@ koin = [
     "koin-core",
     "koin-android",
     "koin-compose",
-    "koin-compose-navigation"
+    "koin-compose-navigation",
+    "koin-workmanager"
 ]

@@ -8,4 +8,5 @@ dependencies {
     implementation(projects.core.filestore)
     implementation(projects.core.database)
     implementation(projects.feature.tooling)
+    implementation(projects.feature.download)
 }

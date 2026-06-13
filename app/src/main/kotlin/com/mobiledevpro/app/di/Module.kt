@@ -18,6 +18,7 @@
 package com.mobiledevpro.app.di
 
 import android.content.ContentResolver
+import androidx.work.WorkManager
 import com.mobiledevpro.database.AppDatabase
 import com.mobiledevpro.filestore.FileStoreManager
 import com.mobiledevpro.filestore.ImplFileStoreManager
@@ -38,6 +39,10 @@ val coreModule = module {
 
     single<FileStoreManager> {
         ImplFileStoreManager(androidApplication().applicationContext)
+    }
+
+    single<WorkManager> {
+        WorkManager.getInstance(androidApplication().applicationContext)
     }
 
     single<AppDatabase> {
