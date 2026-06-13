@@ -80,7 +80,6 @@ import org.json.JSONObject
  */
 
 private const val MAX_INPUT_TOKENS = 4000
-private const val CHAR_COUNT_PER_TOKEN = 5 // 1 token is approximately equal to 5 characters
 
 class RunMediaPipeUseCase(
     database: AppDatabase,
@@ -126,7 +125,7 @@ class RunMediaPipeUseCase(
                 Log.d(this@RunMediaPipeUseCase.javaClass.name, "buildUseCaseFlow: $state")
                 when (state) {
                     WorkInfo.State.ENQUEUED, WorkInfo.State.RUNNING -> flowOf(AIState.DOWNLOADING_MODEL)
-                    WorkInfo.State.SUCCEEDED -> initAi()
+                    WorkInfo.State.SUCCEEDED -> initLLM()
                     WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> flowOf(AIState.ERROR)
                     else -> {
                         // Check if file exists anyway
@@ -135,7 +134,7 @@ class RunMediaPipeUseCase(
                                 FileType.TEMP_AI_MODEL
                             )
                         )
-                            initAi()
+                            initLLM()
                         else
                             flowOf(AIState.IDLE)
                     }
@@ -179,7 +178,7 @@ class RunMediaPipeUseCase(
      * Initialize LLM
      *
      */
-    private fun initAi(): Flow<AIState> = callbackFlow {
+    private fun initLLM(): Flow<AIState> = callbackFlow {
         trySend(AIState.INITIALIZING)
 
         // Copy model from assets to in-app storage
@@ -224,6 +223,7 @@ class RunMediaPipeUseCase(
 
         val toolBuilder = Tool.newBuilder()
         availableSkills.forEach { skill ->
+            Log.d("Agent", "createChatSession: ${skill.name} | ${skill.declaration}")
             toolBuilder.addFunctionDeclarations(skill.declaration)
         }
         val registeredTools = toolBuilder.build()
@@ -313,11 +313,11 @@ class RunMediaPipeUseCase(
             dao.insert(messageEntity)
         }
 
-    private suspend fun markUserMessageAnswered(createdAt: Long) {
+    private fun markUserMessageAnswered(createdAt: Long) {
         dao.updateAsAnswered(createdAt)
     }
 
-    private suspend fun updateAnswerText(createdAt: Long, text: String) {
+    private fun updateAnswerText(createdAt: Long, text: String) {
         dao.updateText(createdAt, text)
     }
 
@@ -386,7 +386,8 @@ class RunMediaPipeUseCase(
                  .build()*/
 
             // Submit results back to the LLM
-            response = session.sendMessage(resultText)
+            response =
+                session.sendMessage(PromptWrapper.createToolResponseSummaryPrompt(resultText))
         }
         // }
 
@@ -401,18 +402,34 @@ class RunMediaPipeUseCase(
     }
 
     private fun extractManualToolCalls(text: String): List<Pair<String, String>> {
+        val calls = mutableListOf<Pair<String, String>>()
+
+        // 1. Parse JSON format: ```json { "name": "...", "parameters": { "query": "..." } } ```
         val jsonRegex = Regex("```json\\s*(\\{.*?\\})\\s*```", RegexOption.DOT_MATCHES_ALL)
-        return jsonRegex.findAll(text).mapNotNull { match ->
+        jsonRegex.findAll(text).forEach { match ->
             try {
                 val json = JSONObject(match.groupValues[1])
                 val name = json.optString("name")
                 val params = json.optJSONObject("parameters")
                 val query = params?.optString("query") ?: ""
-                if (name.isNotEmpty()) name to query else null
+                if (name.isNotEmpty()) calls.add(name to query)
             } catch (e: Exception) {
-                null
+                // Ignore parsing errors
             }
-        }.toList()
+        }
+
+        // 2. Parse function-like format: tool_name("query") or tool_name()
+        val funcRegex = Regex("(\\w+)\\((\".*?\")?\\)")
+        funcRegex.findAll(text).forEach { match ->
+            val name = match.groupValues[1]
+            val query = match.groupValues[2].removeSurrounding("\"")
+            // Avoid adding if already added by JSON parser
+            if (calls.none { it.first == name && it.second == query }) {
+                calls.add(name to query)
+            }
+        }
+
+        return calls
     }
 
     private suspend fun executeTool(
@@ -428,7 +445,7 @@ class RunMediaPipeUseCase(
 
             "view_calendar" -> {
                 onStateChanged(AIState.CHECKING_CALENDAR)
-                "Sorry View Calendar hasn't been implemented yet."
+                ToolSnippet.fetchCalendarEvents(context)
             }
             else -> "Error: Tool not found"
         }

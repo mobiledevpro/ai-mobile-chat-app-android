@@ -1,6 +1,6 @@
 ---
 name: view_calendar
-description: Retrieves a list of calendar events, meetings, or agenda items for a specified time range or matching a specific search query.
+description: Retrieves a list of calendar events, meetings, or agenda items for today.
 parameters: {
   "type": "OBJECT",
   "properties": {
@@ -17,7 +17,7 @@ parameters: {
       "description": "Optional keyword or title phrase to filter the calendar events (e.g., 'dentist', 'sync meeting'). Leave empty if retrieving the full agenda."
     }
   },
-  "required": [ "startDate", "endDate" ]
+  "required": []
 }
 ---
 

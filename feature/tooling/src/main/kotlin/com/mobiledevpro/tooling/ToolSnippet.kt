@@ -17,11 +17,14 @@
  */
 package com.mobiledevpro.tooling
 
+import android.content.Context
+import android.provider.CalendarContract
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import java.net.URLEncoder
+import java.util.Calendar
 
 /**
  * Snippets to handle users query
@@ -101,6 +104,62 @@ object ToolSnippet {
             }
         } catch (e: Exception) {
             "Network search failed: ${e.localizedMessage ?: "Unknown error"}"
+        }
+    }
+
+    suspend fun fetchCalendarEvents(context: Context): String = withContext(Dispatchers.IO) {
+        try {
+            val contentResolver = context.contentResolver
+            val calendar = Calendar.getInstance()
+
+            // Set range for "today"
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val startMillis = calendar.timeInMillis
+
+            calendar.set(Calendar.HOUR_OF_DAY, 23)
+            calendar.set(Calendar.MINUTE, 59)
+            calendar.set(Calendar.SECOND, 59)
+            calendar.set(Calendar.MILLISECOND, 999)
+            val endMillis = calendar.timeInMillis
+
+            val projection = arrayOf(
+                CalendarContract.Events.TITLE,
+                CalendarContract.Events.DTSTART,
+                CalendarContract.Events.DTEND
+            )
+
+            val selection =
+                "(${CalendarContract.Events.DTSTART} >= ?) AND (${CalendarContract.Events.DTSTART} <= ?)"
+            val selectionArgs = arrayOf(startMillis.toString(), endMillis.toString())
+
+            val cursor = contentResolver.query(
+                CalendarContract.Events.CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                "${CalendarContract.Events.DTSTART} ASC"
+            )
+
+            val events = mutableListOf<String>()
+            cursor?.use {
+                while (it.moveToNext()) {
+                    val title = it.getString(0)
+                    events.add("- $title")
+                }
+            }
+
+            if (events.isEmpty()) {
+                "No events found for today."
+            } else {
+                "Today's schedule:\n" + events.joinToString("\n")
+            }
+        } catch (e: SecurityException) {
+            "Error: Calendar permission is required to view events. Go to App Info - Permissions and allow Calendar"
+        } catch (e: Exception) {
+            "Failed to fetch calendar: ${e.localizedMessage}"
         }
     }
 }

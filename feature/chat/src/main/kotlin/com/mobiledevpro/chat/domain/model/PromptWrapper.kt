@@ -32,8 +32,11 @@ object PromptWrapper {
                 "CRITICAL INSTRUCTION: " +
                 "\n1. For any questions about current events, prices (like BTC, Gold, Stocks), " +
                 "weather, or real-time data, you MUST use the 'web_search' tool. " +
-                "\n2. Do NOT guess or provide info from your training data for real-time facts. " +
-                "\n3. If the user asks What's my schedule or want to view calendar events, you MUST use the 'view_calendar' tool. "
+                "\n2. You have NO access to the user's personal calendar, agenda, or schedule. If the user asks 'What's my schedule', 'What's on my agenda', or similar, you MUST use the 'view_calendar' tool. Note that you can only see events for today." +
+                "\n3. Do NOT guess or provide info from your training data for real-time facts or user's personal events."
+
+    fun createToolResponseSummaryPrompt(text: String): String =
+        "Analyze the following message from the tool, remove any JSON tags and provide a short message for the user: $text"
 
     fun createPrompt(skillsTxt: String?, userMessage: String, history: List<ChatMessage>): String {
         return if (skillsTxt.isNullOrEmpty()) {
