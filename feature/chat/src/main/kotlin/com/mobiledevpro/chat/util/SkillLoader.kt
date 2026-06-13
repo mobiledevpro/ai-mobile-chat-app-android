@@ -1,7 +1,11 @@
 package com.mobiledevpro.chat.util
 
 import android.content.Context
+import com.google.ai.edge.localagents.core.proto.FunctionDeclaration
+import com.google.ai.edge.localagents.core.proto.Schema
+import com.google.ai.edge.localagents.core.proto.Type
 import com.mobiledevpro.chat.domain.model.AgentSkill
+import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
@@ -41,18 +45,65 @@ class SkillLoader(val context: Context) {
 
         var name = ""
         var description = ""
+        var paramsJson: JSONObject? = null
 
         frontmatter.lines().forEach { line ->
             when {
                 line.startsWith("name:") -> name = line.substringAfter("name:").trim()
                 line.startsWith("description:") -> description =
                     line.substringAfter("description:").trim()
+
+                line.trim().startsWith("parameters:") -> {
+                    val rawJson = frontmatter.substringAfter("parameters:").trim()
+                    paramsJson = JSONObject(rawJson)
+                }
             }
         }
 
         if (name.isEmpty() || description.isEmpty()) return null
 
-        return AgentSkill(name, description, body, rawContent)
+        // Build out MediaPipe structural schema constraints
+        val functionBuilder = FunctionDeclaration.newBuilder()
+            .setName(name)
+            .setDescription(description)
+
+        paramsJson?.let {
+            functionBuilder.setParameters(convertJsonToMediaPipeSchema(it))
+        }
+
+        return AgentSkill(
+            name = name,
+            description = description,
+            fullInstructions = body,
+            rawContent = rawContent,
+            declaration = functionBuilder.build()
+        )
+    }
+
+    /**
+     * Maps arbitrary JSON schema configurations straight into native MediaPipe Schemas
+     */
+    private fun convertJsonToMediaPipeSchema(json: JSONObject): Schema {
+        val builder = Schema.newBuilder()
+
+        val typeString = json.optString("type", "OBJECT")
+        builder.type = Type.valueOf(typeString.uppercase())
+
+        if (json.has("description")) {
+            builder.description = json.getString("description")
+        }
+
+        val properties = json.optJSONObject("properties")
+        if (properties != null) {
+            val keys = properties.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val propertyNode = properties.getJSONObject(key)
+                // Recursive tree walk evaluation for nested object types
+                builder.putProperties(key, convertJsonToMediaPipeSchema(propertyNode))
+            }
+        }
+        return builder.build()
     }
 
 

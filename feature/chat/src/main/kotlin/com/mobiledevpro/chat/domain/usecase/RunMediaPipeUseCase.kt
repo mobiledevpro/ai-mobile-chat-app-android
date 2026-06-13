@@ -21,11 +21,22 @@ import android.content.Context
 import android.util.Log
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.google.ai.edge.localagents.core.proto.Content
+import com.google.ai.edge.localagents.core.proto.FunctionCall
+import com.google.ai.edge.localagents.core.proto.FunctionResponse
+import com.google.ai.edge.localagents.core.proto.GenerateContentResponse
+import com.google.ai.edge.localagents.core.proto.Part
+import com.google.ai.edge.localagents.core.proto.Tool
+import com.google.ai.edge.localagents.fc.ChatSession
+import com.google.ai.edge.localagents.fc.GemmaFormatter
+import com.google.ai.edge.localagents.fc.GenerativeModel
+import com.google.ai.edge.localagents.fc.LlmInferenceBackend
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
+import com.google.protobuf.Struct
+import com.google.protobuf.Value
 import com.mobiledevpro.chat.domain.model.AIState
-import com.mobiledevpro.chat.domain.model.PromptWrapper
-import com.mobiledevpro.chat.mapper.toDomain
+import com.mobiledevpro.chat.domain.model.AgentSkill
 import com.mobiledevpro.chat.util.SkillLoader
 import com.mobiledevpro.coroutines.BaseCoroutinesFLowUseCase
 import com.mobiledevpro.coroutines.None
@@ -35,7 +46,6 @@ import com.mobiledevpro.download.DownloadManagerHelper
 import com.mobiledevpro.download.DownloadManagerHelper.downloadWorkRequest
 import com.mobiledevpro.filestore.FileStoreManager
 import com.mobiledevpro.filestore.FileType
-import com.mobiledevpro.tooling.ToolSnippet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -73,25 +83,27 @@ class RunMediaPipeUseCase(
     database: AppDatabase,
     private val context: Context,
     private val fileStoreManager: FileStoreManager,
-    private val skillParser: SkillLoader,
-    private val workManager: WorkManager
+    private val skillLoader: SkillLoader,
+    workManager: WorkManager,
 ) : BaseCoroutinesFLowUseCase<None, AIState>(Dispatchers.IO) {
 
     private var llmInference: LlmInference? = null
+    private var chatSession: ChatSession? = null
 
     private val dao = database.chatMessageDao()
     private var jobGenerateCompletion: Deferred<Unit>? = null
     private var jobMessageUpdate: Job? = null
 
     private val channelMessageForUpdate = Channel<ChatMessageEntity>(Channel.CONFLATED)
-    private var skillsText: String? = null
+    private var availableSkills: List<AgentSkill> = emptyList()
 
     private val downloadWorkInfoFlow: Flow<WorkInfo?> = workManager
         .getWorkInfoByIdFlow(downloadWorkRequest.id)
 
     init {
-        skillsText = loadAvailableSkills()
+        availableSkills = loadAvailableSkills()
     }
+
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     override fun buildUseCaseFlow(params: None?): Flow<AIState> =
@@ -182,6 +194,32 @@ class RunMediaPipeUseCase(
             .build()
 
         llmInference = LlmInference.createFromOptions(context, options)
+        val llmInferenceBackend = LlmInferenceBackend(llmInference, GemmaFormatter())
+
+        val toolBuilder = Tool.newBuilder()
+        availableSkills.forEach { skill ->
+            toolBuilder.addFunctionDeclarations(skill.declaration)
+        }
+        val registeredTools = toolBuilder.build()
+
+        // Author the foundational system instructions
+        val systemInstruction = Content.newBuilder()
+            .setRole("system")
+            .addParts(
+                Part.newBuilder()
+                    .setText("You are a context-aware offline Android assistant equipped with local tools.")
+            )
+            .build()
+
+        // Instantiate the GenerativeModel structure directly (This replaces the broken builder)
+        val generativeModel = GenerativeModel(
+            llmInferenceBackend,
+            systemInstruction,
+            listOf(registeredTools)
+        )
+
+        // Generate the tracking ChatSession instance from the model parent
+        chatSession = generativeModel.startChat()
 
         trySend(AIState.READY)
 
@@ -221,25 +259,31 @@ class RunMediaPipeUseCase(
 
                 val userText = chatMessages.last().text
 
-                val finalPrompt: String = PromptWrapper.createPrompt(
-                    skillsTxt = null,//skillsText,
+
+                /*val finalPrompt: String = PromptWrapper.createPrompt(
+                    skillsTxt = skillsTxt,
                     userMessage = userText,
                     history = chatMessages.toDomain()
-                )
+                )*/
+
+
 
                 emit(AIState.THINKING)
 
                 val answerTextBuilder = StringBuilder()
 
-                Log.d(
-                    this@RunMediaPipeUseCase.javaClass.name,
-                    "handleUserMessages: prompt : \n$finalPrompt"
-                )
 
                 // Moved generation and completion handling to a separate function
-                handlePrompt(finalPrompt, aiAnswerMessage, answerTextBuilder) {
-                    this@flow.emit(AIState.COMPLETED)
-                }
+                /* handlePrompt(finalPrompt, aiAnswerMessage, answerTextBuilder) {
+                     this@flow.emit(AIState.COMPLETED)
+                 }*/
+
+                processAgentTurn(
+                    chatSession!!,
+                    userText,
+                    aiAnswerMessage,
+                    answerTextBuilder
+                )
 
                 // Handle SKILL triggers from LLM response
                 //  findAndHandleTriggers(answerTextBuilder.toString())
@@ -360,8 +404,10 @@ class RunMediaPipeUseCase(
         }
     }
 
-    private fun loadAvailableSkills(): String? = null
+    private fun loadAvailableSkills(): List<AgentSkill> =
+        skillLoader.loadSkillsFromAssets()
 
+    /*
     private suspend fun findAndHandleTriggers(answer: String) {
         Log.i(this@RunMediaPipeUseCase.javaClass.name, "findAndHandleTriggers: $answer")
         // Implementation for finding and handling triggers
@@ -397,5 +443,94 @@ class RunMediaPipeUseCase(
             }
         }
     }
+
+     */
+
+    private suspend fun processAgentTurn(
+        session: ChatSession,
+        userInput: String,
+        aiAnswerMessage: ChatMessageEntity,
+        answerTextBuilder: StringBuilder
+    ) {
+        // 1. Send the initial user message
+        var response: GenerateContentResponse = session.sendMessage(userInput)
+
+        Log.i("Agent", "processAgentTurn: response: ${response}")
+
+        // 2. Multi-step execution loop
+        // If the LLM wants to use a tool, it returns a FunctionCall instead of text.
+        while (response.hasFunctionCalls()) {
+            val parts = mutableListOf<Part>()
+            for (call in response.functionCalls()) {
+                Log.i("Agent", "Executing tool: ${call.name}")
+
+                // 3. Map tool name to your Kotlin/Native code
+                val resultText = when (call.name) {
+                    "web_search" -> {
+                        val query = call.getArgument("query")
+                        "Searching in web for $query"
+                        //ToolSnippet.fetchSearchSnippet(query)
+                    }
+
+                    "view_calendar" -> "No appointments found for today."
+                    else -> "Error: Tool not found"
+                }
+
+
+                val functionResponse = FunctionResponse.newBuilder()
+                    .setName(call.name)
+                    .setResponse(
+                        Struct.newBuilder()
+                            .putFields(
+                                "content",
+                                Value.newBuilder().setStringValue(resultText).build()
+                            )
+                            .build()
+                    )
+                    .build()
+
+                parts.add(Part.newBuilder().setFunctionResponse(functionResponse).build())
+            }
+
+            val toolResponseContent = Content.newBuilder()
+                .setRole("function")
+                .addAllParts(parts)
+                .build()
+
+            // 4. Submit the result back to the LLM
+            // The model will then "see" this data and decide on the next step
+            response = session.sendMessage(toolResponseContent)
+        }
+
+        // 5. Final output
+        // Once the LLM is done with tools, it provides a final synthesized text response.
+        val finalResult = response.text()
+
+        synchronized(answerTextBuilder) {
+            answerTextBuilder.append(finalResult)
+            channelMessageForUpdate.trySend(aiAnswerMessage.copy(text = answerTextBuilder.toString()))
+        }
+    }
+
+    /*
+ * Helper extensions to bridge the gap between Protos and high-level logic
+ */
+
+    private fun GenerateContentResponse.hasFunctionCalls(): Boolean =
+        candidatesList.any { it.content.partsList.any { part -> part.hasFunctionCall() } }
+
+    private fun GenerateContentResponse.functionCalls(): List<FunctionCall> =
+        candidatesList.flatMap { it.content.partsList }
+            .filter { it.hasFunctionCall() }
+            .map { it.functionCall }
+
+    private fun GenerateContentResponse.text(): String =
+        candidatesList.firstOrNull()?.content?.partsList
+            ?.filter { it.hasText() }
+            ?.joinToString("") { it.text } ?: ""
+
+    // Simple helper to extract arguments from the Struct proto
+    private fun FunctionCall.getArgument(key: String): String =
+        args.fieldsMap[key]?.stringValue ?: ""
 
 }
