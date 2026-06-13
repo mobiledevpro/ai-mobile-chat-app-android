@@ -24,6 +24,5 @@ import org.koin.dsl.module
 
 
 val featureDownload = module {
-    //factoryOf(::ExportImageUseCase)
     workerOf(::DownloadWorker)
 }

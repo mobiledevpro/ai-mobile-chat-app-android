@@ -19,4 +19,5 @@ dependencies {
     implementation(projects.feature.home)
     implementation(projects.feature.chat)
     implementation(projects.feature.settings)
+    implementation(projects.feature.download)
 }

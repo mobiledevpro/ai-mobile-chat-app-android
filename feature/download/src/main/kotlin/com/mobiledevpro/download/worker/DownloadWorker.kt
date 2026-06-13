@@ -21,10 +21,14 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.mobiledevpro.download.domain.usecase.DownloadUseCase
+import com.mobiledevpro.download.DownloadManagerHelper
+import com.mobiledevpro.download.DownloadManagerHelper.REPO_URL
+import com.mobiledevpro.filestore.FileStoreManager
+import com.mobiledevpro.filestore.FileType
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 
@@ -37,84 +41,87 @@ import java.io.IOException
 class DownloadWorker(
     appContext: Context,
     workerParams: WorkerParameters,
-    private val downloadUseCase: DownloadUseCase
+    private val fileStoreManager: FileStoreManager
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        val repoUrl =
-            "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/model.litertlm"
-
-        // Save into app internal system storage context so it's sandbox protected
-        val targetFile = File(applicationContext.filesDir, "gemma_4_e2b.litertlm")
-
-        // Delete partial artifacts from failed previous runs to guarantee clean writes
-        if (targetFile.exists()) {
-            targetFile.delete()
-        }
+        val targetFile = fileStoreManager.createFile(
+            DownloadManagerHelper.llmLocalFileName,
+            extension = "",
+            FileType.TEMP_AI_MODEL
+        )
 
         val client = OkHttpClient.Builder().build()
         val request = Request.Builder()
-            .url(repoUrl)
+            .url(REPO_URL)
             // .addHeader("Authorization", "Bearer hf_xxx") // Uncomment if accessing gated models
             .build()
 
         return try {
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) throw IOException("Unexpected network error code: $response")
+            withContext(Dispatchers.IO) {
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) throw IOException("Unexpected network error code: $response")
 
-                val body =
-                    response.body ?: throw IOException("Empty payload returned from Hugging Face.")
-                val totalBytes = body.contentLength()
+                    val body =
+                        response.body
+                            ?: throw IOException("Empty payload returned from Hugging Face.")
+                    val totalBytes = body.contentLength()
 
-                body.byteStream().use { inputStream ->
-                    FileOutputStream(targetFile).use { outputStream ->
-                        val data = ByteArray(BUFFER_SIZE)
-                        var bytesRead: Int
-                        var totalBytesRead: Long = 0
-                        var lastProgressUpdate = 0
+                    body.byteStream().use { inputStream ->
+                        FileOutputStream(targetFile).use { outputStream ->
+                            val data = ByteArray(BUFFER_SIZE)
+                            var bytesRead: Int
+                            var totalBytesRead: Long = 0
+                            var lastProgressUpdate = 0
 
-                        while (inputStream.read(data).also { bytesRead = it } != -1) {
-                            outputStream.write(data, 0, bytesRead)
-                            totalBytesRead += bytesRead
+                            while (inputStream.read(data).also { bytesRead = it } != -1) {
+                                // Check if worker was cancelled by the system
+                                if (isStopped) {
+                                    throw IOException("Download cancelled")
+                                }
 
-                            if (totalBytes > 0) {
-                                val currentProgress = ((totalBytesRead * 100) / totalBytes).toInt()
-                                // Throttle work updates to minimize system IPC message cycles
-                                if (currentProgress > lastProgressUpdate) {
-                                    lastProgressUpdate = currentProgress
-                                    setProgress(workDataOf(KEY_PROGRESS to currentProgress))
+                                outputStream.write(data, 0, bytesRead)
+                                totalBytesRead += bytesRead
+
+                                if (totalBytes > 0) {
+                                    val currentProgress =
+                                        ((totalBytesRead * 100) / totalBytes).toInt()
+                                    // Throttle work updates to minimize system IPC message cycles
+                                    if (currentProgress > lastProgressUpdate) {
+                                        lastProgressUpdate = currentProgress
+                                        setProgress(workDataOf(KEY_PROGRESS to currentProgress))
+                                    }
                                 }
                             }
+                            outputStream.flush()
                         }
-                        outputStream.flush()
                     }
                 }
             }
-            Result.success()
+            // Return 100% progress and the file path on success
+            Result.success(
+                workDataOf(
+                    KEY_PROGRESS to 100,
+                    KEY_FILE_PATH to targetFile.absolutePath
+                )
+            )
         } catch (e: Exception) {
             if (targetFile.exists()) {
                 targetFile.delete()
             } // Clean up failed/broken download files
-            Result.failure(workDataOf(KEY_ERROR to (e.localizedMessage ?: "Network IO failure")))
+            Result.failure(
+                workDataOf(
+                    KEY_ERROR to (e.localizedMessage ?: "Network IO failure"),
+                    KEY_PROGRESS to 0
+                )
+            )
         }
     }
 
-    /*private fun kotlin.Result<Any>.toWorkerResult(): Result =
-        if (this.isSuccess)
-            Result.success()
-        else {
-            val error = this.exceptionOrNull()?.localizedMessage
-                ?: this.exceptionOrNull()?.cause?.localizedMessage ?: "Unknown error"
-            workDataOf(KEY_ERROR to error)
-                .let(Result::failure)
-        }*/
-
     companion object {
-        // https://huggingface.co/$modelId/resolve/$commitHash/$modelFile?download=true
-        const val REPO_URL =
-            "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm?download=true"
         const val KEY_PROGRESS = "PROGRESS"
         const val KEY_ERROR = "ERROR_MESSAGE"
+        const val KEY_FILE_PATH = "FILE_PATH"
         private const val BUFFER_SIZE = 8192 // 8 KB byte buffer
     }
 }

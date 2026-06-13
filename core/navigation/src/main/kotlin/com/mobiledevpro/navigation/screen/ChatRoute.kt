@@ -17,17 +17,13 @@
  */
 package com.mobiledevpro.navigation.screen
 
-import android.content.Intent
-import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.ActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.mobiledevpro.chat.di.featureChatModule
 import com.mobiledevpro.chat.ui.ChatScreen
 import com.mobiledevpro.chat.ui.vm.ChatViewModel
 import com.mobiledevpro.di.rememberNavViewModel
+import com.mobiledevpro.download.di.featureDownload
 import com.mobiledevpro.navigation.Screen
 
 fun NavGraphBuilder.chatRoute(onNavigateTo: (Screen) -> Unit) {
@@ -37,7 +33,10 @@ fun NavGraphBuilder.chatRoute(onNavigateTo: (Screen) -> Unit) {
 
         val viewModel = rememberNavViewModel<ChatViewModel>(
             modules = {
-                listOf(featureChatModule)
+                listOf(
+                    featureChatModule,
+                    featureDownload
+                )
             }
         )
 

@@ -17,7 +17,10 @@
  */
 package com.mobiledevpro.chat.ui.vm
 
+import android.util.Log
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.mobiledevpro.chat.domain.model.AIState
 import com.mobiledevpro.chat.domain.model.ChatMessage
 import com.mobiledevpro.chat.domain.model.ChatMessageCollection
@@ -31,6 +34,11 @@ import com.mobiledevpro.chat.domain.usecase.GetChatMessagesUseCase
 import com.mobiledevpro.chat.domain.usecase.RunMediaPipeUseCase
 import com.mobiledevpro.chat.domain.usecase.SendMessageUseCase
 import com.mobiledevpro.chat.ui.state.ChatUIState
+import com.mobiledevpro.download.DownloadManagerHelper
+import com.mobiledevpro.download.DownloadManagerHelper.downloadWorkRequest
+import com.mobiledevpro.download.worker.DownloadWorker
+import com.mobiledevpro.filestore.FileStoreManager
+import com.mobiledevpro.filestore.FileType
 import com.mobiledevpro.ui.vm.BaseViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -49,7 +57,9 @@ class ChatViewModel(
     private val getChatMessagesUseCase: GetChatMessagesUseCase,
     private val sendMessageUseCase: SendMessageUseCase,
     private val clearHistoryUseCase: ClearHistoryUseCase,
-    private val runAiUseCase: RunMediaPipeUseCase
+    private val runAiUseCase: RunMediaPipeUseCase,
+    private val workManager: WorkManager,
+    private val fileStoreManager: FileStoreManager
 ) : BaseViewModel<ChatUIState>() {
 
     private val _newMessageFlow = MutableStateFlow<ChatMessage?>(null)
@@ -57,6 +67,13 @@ class ChatViewModel(
 
     private val _errorFlow = MutableStateFlow<Throwable?>(null)
     private val errorFlow = _errorFlow.asStateFlow()
+
+    private val downloadWorkInfoFlow: Flow<WorkInfo?> = workManager
+        .getWorkInfoByIdFlow(downloadWorkRequest.id)
+
+    init {
+        checkLLMFile()
+    }
 
     override val initialState: ChatUIState
         get() = ChatUIState.Loading("")
@@ -72,11 +89,30 @@ class ChatViewModel(
             aiStateFlow,
             chatMessagesFlow,
             newMessageFlow,
-            errorFlow
+            errorFlow,
+            downloadWorkInfoFlow
         ) { aiStateResult: Result<AIState>,
             chatMessagesResult: Result<List<ChatMessage>>,
             newMessage: ChatMessage?,
-            error: Throwable? ->
+            error: Throwable?,
+            downloadWorkerInfo ->
+
+            Log.d(
+                this@ChatViewModel.javaClass.name,
+                "observeState: downloadWorkerInfo: $downloadWorkerInfo"
+            )
+
+            downloadWorkerInfo?.outputData?.getString(DownloadWorker.KEY_ERROR)?.let { err ->
+                Log.e(
+                    this@ChatViewModel.javaClass.name,
+                    "observeState: downloadWorkerInfo error: $err"
+                )
+            }
+
+            if (downloadWorkerInfo?.state == WorkInfo.State.RUNNING || downloadWorkerInfo?.state == WorkInfo.State.ENQUEUED) {
+                val progress = downloadWorkerInfo.progress.getInt(DownloadWorker.KEY_PROGRESS, 0)
+                return@combine ChatUIState.Loading("Downloading LLM. Please wait... ${progress}%")
+            }
 
             var errorMessage =
                 error?.let { err -> "${err.localizedMessage ?: "Unknown error"}\n" } ?: ""
@@ -141,6 +177,22 @@ class ChatViewModel(
         }
     }
 
+    private fun checkLLMFile() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val isExists = fileStoreManager.isFileExists(
+                DownloadManagerHelper.llmLocalFileName,
+                FileType.TEMP_AI_MODEL
+            )
+
+            Log.d(
+                this@ChatViewModel.javaClass.name,
+                "checkLLMFile: ${DownloadManagerHelper.llmLocalFileName} exists: $isExists"
+            )
+            if (!isExists)
+                DownloadManagerHelper.startDownloading(workManager)
+        }
+    }
+
     private fun getAvailableSkills(): List<Skill> =
         SkillType.entries.map { skillType ->
             Skill(
@@ -155,6 +207,6 @@ class ChatViewModel(
             PredefinedPrompt("Tell me a joke"),
             PredefinedPrompt("Tell me a historical fact"),
             PredefinedPrompt("Search for BTC price"),
-            PredefinedPrompt("What's my schedule today")
+            PredefinedPrompt("View my schedule today")
         )
 }
