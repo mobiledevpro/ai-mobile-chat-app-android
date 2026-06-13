@@ -22,7 +22,6 @@ import android.util.Log
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.google.ai.edge.localagents.core.proto.Content
-import com.google.ai.edge.localagents.core.proto.FunctionCall
 import com.google.ai.edge.localagents.core.proto.FunctionResponse
 import com.google.ai.edge.localagents.core.proto.GenerateContentResponse
 import com.google.ai.edge.localagents.core.proto.Part
@@ -32,11 +31,15 @@ import com.google.ai.edge.localagents.fc.GemmaFormatter
 import com.google.ai.edge.localagents.fc.GenerativeModel
 import com.google.ai.edge.localagents.fc.LlmInferenceBackend
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
-import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.mobiledevpro.chat.domain.model.AIState
 import com.mobiledevpro.chat.domain.model.AgentSkill
+import com.mobiledevpro.chat.domain.model.PromptWrapper
+import com.mobiledevpro.chat.ext.functionCalls
+import com.mobiledevpro.chat.ext.getArgument
+import com.mobiledevpro.chat.ext.hasFunctionCalls
+import com.mobiledevpro.chat.ext.text
 import com.mobiledevpro.chat.util.SkillLoader
 import com.mobiledevpro.coroutines.BaseCoroutinesFLowUseCase
 import com.mobiledevpro.coroutines.None
@@ -46,13 +49,13 @@ import com.mobiledevpro.download.DownloadManagerHelper
 import com.mobiledevpro.download.DownloadManagerHelper.downloadWorkRequest
 import com.mobiledevpro.filestore.FileStoreManager
 import com.mobiledevpro.filestore.FileType
+import com.mobiledevpro.tooling.ToolSnippet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
@@ -68,6 +71,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 /**
  * Use case to init AI, download model and handle user's messages
@@ -230,14 +234,7 @@ class RunMediaPipeUseCase(
             .setRole("system")
             .addParts(
                 Part.newBuilder()
-                    .setText(
-                        "You are a context-aware offline Android assistant equipped with local tools. " +
-                                "CRITICAL INSTRUCTION: " +
-                                "\n1. For any questions about current events, prices (like BTC, Gold, Stocks), " +
-                                "weather, or real-time data, you MUST use the 'web_search' tool. " +
-                                "\n2. Do NOT guess or provide info from your training data for real-time facts. " +
-                                "\n3. If the user asks for their schedule or events, you MUST use the 'view_calendar' tool. "
-                    )
+                    .setText(PromptWrapper.createSystemPrompt())
             )
             .build()
 
@@ -286,11 +283,6 @@ class RunMediaPipeUseCase(
 
                 val answerTextBuilder = StringBuilder()
 
-                // Moved generation and completion handling to a separate function
-                /* handlePrompt(finalPrompt, aiAnswerMessage, answerTextBuilder) {
-                     this@flow.emit(AIState.COMPLETED)
-                 }*/
-
                 if (chatSession == null)
                     createChatSession()
 
@@ -305,9 +297,6 @@ class RunMediaPipeUseCase(
 
                 jobMessageUpdate?.cancel()
                 emit(AIState.COMPLETED)
-
-                // Handle SKILL triggers from LLM response
-                //  findAndHandleTriggers(answerTextBuilder.toString())
             }
 
         }
@@ -344,87 +333,6 @@ class RunMediaPipeUseCase(
             }
         }
 
-    private fun generateResponseFlow(prompt: String): Flow<String> = callbackFlow {
-        val llm = llmInference ?: run {
-            close()
-            return@callbackFlow
-        }
-
-        // 1. Create session with deterministic options
-        // The default values (Temp: 0.8, TopK: 40) are too "creative" for strict tool triggering
-        val sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
-            .setTemperature(0.1f) // CRITICAL: Forces adherence to prompt rules
-            .setTopK(1)
-            .build()
-
-        // 2. Create the session
-        val session = LlmInferenceSession.createFromOptions(llm, sessionOptions)
-
-        // 3. Add the prompt
-        session.addQueryChunk(prompt)
-
-        // 4. Generate the response
-        session.generateResponseAsync { partialResult, done ->
-            Log.d(
-                this@RunMediaPipeUseCase.javaClass.name,
-                "generateResponseFlow: partialResult - $partialResult | done = $done"
-            )
-
-
-            if (partialResult.isNotEmpty())
-                trySend(partialResult)
-
-            if (done) {
-                // DO NOT call session.close() here as it can cause JNI errors 
-                // while the callback is still active. 
-                // close() below will trigger the cleanup in awaitClose.
-                close()
-            }
-        }
-
-        awaitClose {
-            try {
-                session.close()
-            } catch (e: Exception) {
-                // Ignore if already closed
-            }
-        }
-    }
-
-    private suspend fun handlePrompt(
-        finalPrompt: String,
-        aiAnswerMessage: ChatMessageEntity,
-        answerTextBuilder: StringBuilder,
-        onCompleted: suspend () -> Unit
-    ) {
-        coroutineScope {
-            jobGenerateCompletion = async {
-                generateResponseFlow(finalPrompt)
-                    .collect { result ->
-                        synchronized(answerTextBuilder) {
-                            answerTextBuilder.append(result)
-                            channelMessageForUpdate.trySend(
-                                aiAnswerMessage.copy(
-                                    text = answerTextBuilder.toString()
-                                )
-                            )
-                        }
-                    }
-            }
-
-            try {
-                jobGenerateCompletion?.await()
-            } finally {
-                Log.d(
-                    this@RunMediaPipeUseCase.javaClass.name,
-                    "handleUserMessages: ${answerTextBuilder.toString()}"
-                )
-                jobMessageUpdate?.cancel()
-                onCompleted()
-            }
-        }
-    }
-
     private fun loadAvailableSkills(): List<AgentSkill> =
         skillLoader.loadSkillsFromAssets()
 
@@ -438,58 +346,52 @@ class RunMediaPipeUseCase(
         var response: GenerateContentResponse = session.sendMessage(userInput)
 
         Log.i("Agent", "processAgentTurn: response has functions: ${response.hasFunctionCalls()}")
-        Log.i("Agent", "processAgentTurn: response: ${response}")
+        Log.i("Agent", "processAgentTurn: response: $response")
 
         // 2. Multi-step execution loop
-        // If the LLM wants to use a tool, it returns a FunctionCall instead of text.
-        while (response.hasFunctionCalls()) {
-            val parts = mutableListOf<Part>()
-            for (call in response.functionCalls()) {
-                Log.i("Agent", "Executing tool: ${call.name}")
+        //  while (true) {
+        val parts = mutableListOf<Part>()
 
-                // 3. Map tool name to your Kotlin/Native code
-                val resultText = when (call.name) {
-                    "web_search" -> {
-                        val query = call.getArgument("query")
-                        "Searching in web for $query"
-                        //ToolSnippet.fetchSearchSnippet(query)
-                    }
+        // Collect formal calls
+        val formalCalls = response.functionCalls()
 
-                    "view_calendar" -> "No appointments found for today."
-                    else -> "Error: Tool not found"
-                }
+        // Collect manual calls if no formal calls are present
+        val manualCalls = if (formalCalls.isEmpty()) {
+            extractManualToolCalls(response.text())
+        } else emptyList()
 
+        Log.i("Agent", "manualCalls: $manualCalls")
 
-                val functionResponse = FunctionResponse.newBuilder()
-                    .setName(call.name)
-                    .setResponse(
-                        Struct.newBuilder()
-                            .putFields(
-                                "content",
-                                Value.newBuilder().setStringValue(resultText).build()
-                            )
-                            .build()
-                    )
-                    .build()
-
-                parts.add(Part.newBuilder().setFunctionResponse(functionResponse).build())
+        if (formalCalls.isNotEmpty() || manualCalls.isNotEmpty()) {
+            var resultText = ""
+            // Process formal calls
+            for (call in formalCalls) {
+                Log.i("Agent", "Executing formal tool: ${call.name}")
+                resultText = executeTool(call.name, call.getArgument("query"))
+                // parts.add(createFunctionResponsePart(call.name, resultText))
             }
 
-            val toolResponseContent = Content.newBuilder()
-                .setRole("function")
-                .addAllParts(parts)
-                .build()
+            // Process manual calls
+            for (call in manualCalls) {
+                Log.i("Agent", "Executing manual tool: ${call.first}")
+                resultText = executeTool(call.first, call.second)
+                Log.d("Agent", "processAgentTurn: manualCalls resultText: $resultText")
+                // parts.add(createFunctionResponsePart(call.first, resultText))
+            }
 
-            // 4. Submit the result back to the LLM
-            // The model will then "see" this data and decide on the next step
-            response = session.sendMessage(toolResponseContent)
+            /* val toolResponseContent = Content.newBuilder()
+                 .setRole("function")
+                 .addAllParts(parts)
+                 .build()*/
+
+            // Submit results back to the LLM
+            response = session.sendMessage(resultText)
         }
+        // }
 
-        // 5. Final output
-        // Once the LLM is done with tools, it provides a final synthesized text response.
+        // 3. Final output
         val finalResult = response.text()
-
-        Log.d("Agent", "processAgentTurn: resp text: $finalResult")
+        Log.d("Agent", "processAgentTurn: final resp: $response")
 
         synchronized(answerTextBuilder) {
             answerTextBuilder.append(finalResult)
@@ -497,25 +399,44 @@ class RunMediaPipeUseCase(
         }
     }
 
-    /*
- * Helper extensions to bridge the gap between Protos and high-level logic
- */
+    private fun extractManualToolCalls(text: String): List<Pair<String, String>> {
+        val jsonRegex = Regex("```json\\s*(\\{.*?\\})\\s*```", RegexOption.DOT_MATCHES_ALL)
+        return jsonRegex.findAll(text).mapNotNull { match ->
+            try {
+                val json = JSONObject(match.groupValues[1])
+                val name = json.optString("name")
+                val params = json.optJSONObject("parameters")
+                val query = params?.optString("query") ?: ""
+                if (name.isNotEmpty()) name to query else null
+            } catch (e: Exception) {
+                null
+            }
+        }.toList()
+    }
 
-    private fun GenerateContentResponse.hasFunctionCalls(): Boolean =
-        candidatesList.any { it.content.partsList.any { part -> part.hasFunctionCall() } }
+    private suspend fun executeTool(name: String, query: String): String {
+        return when (name) {
+            "web_search" -> {
+                ToolSnippet.fetchSearchSnippet(query)
+            }
 
-    private fun GenerateContentResponse.functionCalls(): List<FunctionCall> =
-        candidatesList.flatMap { it.content.partsList }
-            .filter { it.hasFunctionCall() }
-            .map { it.functionCall }
+            "view_calendar" -> "Sorry View Calendar hasn't been implemented yet."
+            else -> "Error: Tool not found"
+        }
+    }
 
-    private fun GenerateContentResponse.text(): String =
-        candidatesList.firstOrNull()?.content?.partsList
-            ?.filter { it.hasText() }
-            ?.joinToString("") { it.text } ?: ""
-
-    // Simple helper to extract arguments from the Struct proto
-    private fun FunctionCall.getArgument(key: String): String =
-        args.fieldsMap[key]?.stringValue ?: ""
-
+    private fun createFunctionResponsePart(name: String, resultText: String): Part {
+        val functionResponse = FunctionResponse.newBuilder()
+            .setName(name)
+            .setResponse(
+                Struct.newBuilder()
+                    .putFields(
+                        "content",
+                        Value.newBuilder().setStringValue(resultText).build()
+                    )
+                    .build()
+            )
+            .build()
+        return Part.newBuilder().setFunctionResponse(functionResponse).build()
+    }
 }

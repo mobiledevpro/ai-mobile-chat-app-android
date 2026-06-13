@@ -27,6 +27,14 @@ object PromptWrapper {
     private const val START_TURN = "<start_of_turn>"
     private const val END_TURN = "<end_of_turn>"
 
+    fun createSystemPrompt() =
+        "You are a context-aware offline Android assistant equipped with local tools. " +
+                "CRITICAL INSTRUCTION: " +
+                "\n1. For any questions about current events, prices (like BTC, Gold, Stocks), " +
+                "weather, or real-time data, you MUST use the 'web_search' tool. " +
+                "\n2. Do NOT guess or provide info from your training data for real-time facts. " +
+                "\n3. If the user asks What's my schedule or want to view calendar events, you MUST use the 'view_calendar' tool. "
+
     fun createPrompt(skillsTxt: String?, userMessage: String, history: List<ChatMessage>): String {
         return if (skillsTxt.isNullOrEmpty()) {
             createDefaultPrompt(userMessage, history)
