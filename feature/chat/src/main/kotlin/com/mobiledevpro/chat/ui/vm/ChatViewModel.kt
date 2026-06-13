@@ -97,23 +97,6 @@ class ChatViewModel(
             error: Throwable?,
             downloadWorkerInfo ->
 
-            Log.d(
-                this@ChatViewModel.javaClass.name,
-                "observeState: AI STATE: ${aiStateResult.getOrNull()}"
-            )
-
-            Log.d(
-                this@ChatViewModel.javaClass.name,
-                "observeState: downloadWorkerInfo: $downloadWorkerInfo"
-            )
-
-            downloadWorkerInfo?.outputData?.getString(DownloadWorker.KEY_ERROR)?.let { err ->
-                Log.e(
-                    this@ChatViewModel.javaClass.name,
-                    "observeState: downloadWorkerInfo error: $err"
-                )
-            }
-
             if (downloadWorkerInfo?.state == WorkInfo.State.RUNNING || downloadWorkerInfo?.state == WorkInfo.State.ENQUEUED) {
                 val progress = downloadWorkerInfo.progress.getInt(DownloadWorker.KEY_PROGRESS, 0)
                 return@combine ChatUIState.Loading("Downloading LLM. Please wait... ${progress}%")

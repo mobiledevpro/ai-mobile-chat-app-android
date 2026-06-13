@@ -21,6 +21,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.mobiledevpro.download.BuildConfig
 import com.mobiledevpro.download.DownloadManagerHelper
 import com.mobiledevpro.download.DownloadManagerHelper.REPO_URL
 import com.mobiledevpro.filestore.FileStoreManager
@@ -56,8 +57,8 @@ class DownloadWorker(
             .url(REPO_URL)
             .addHeader(
                 "Authorization",
-                "Bearer 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"
-            ) // TODO: use you own HuggingFace token and story is securely
+                "Bearer ${BuildConfig.HUGGING_FACE_TOKEN}"
+            )
             .build()
 
         return try {

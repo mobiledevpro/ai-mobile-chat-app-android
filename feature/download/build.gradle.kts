@@ -1,5 +1,25 @@
+import java.util.Properties
+
 plugins {
     id("core-module")
+}
+
+android {
+    buildFeatures {
+        buildConfig = true
+    }
+
+    val localProperties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localProperties.load(localPropertiesFile.inputStream())
+    }
+
+    val huggingFaceToken: String = localProperties.getProperty("HUGGING_FACE_TOKEN") ?: ""
+
+    defaultConfig {
+        buildConfigField("String", "HUGGING_FACE_TOKEN", "\"$huggingFaceToken\"")
+    }
 }
 
 dependencies {

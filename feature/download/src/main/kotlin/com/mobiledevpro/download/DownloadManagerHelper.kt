@@ -28,16 +28,15 @@ import com.mobiledevpro.download.worker.DownloadWorker
  *
  * Created on Jun 13, 2026.
  *
- * NOTE: Gemma 4 doesn't work with MediaPipe , need to use advanced way - LiteRT
+ * NOTE: Gemma 4 doesn't work with MediaPipe , need to use advanced way instead - LiteRT
  *
  */
 
 object DownloadManagerHelper {
     // https://huggingface.co/$modelId/resolve/$commitHash/$modelFile?download=true
     const val REPO_URL =
-        "https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/main/Gemma3-1B-IT_multi-prefill-seq_q4_block128_ekv1280.task?download=true"
+        "https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/main/Gemma3-1B-IT_multi-prefill-seq_q4_block128_ekv4096.task?download=true"
 
-    //"https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-web.task?download=true"
     const val WORKER_TAG = "LLM_DOWNLOAD_TASK"
 
     private val constraints = Constraints.Builder()
