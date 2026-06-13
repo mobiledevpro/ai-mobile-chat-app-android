@@ -139,27 +139,34 @@ class RunMediaPipeUseCase(
                 }
             }
             .flatMapLatest { aIState: AIState ->
-                if (aIState == AIState.READY)
+                if (aIState == AIState.READY) {
                     getChatMessages()
                         .distinctUntilChanged()
-                        .flatMapConcat { chatMessages: List<ChatMessageEntity> ->
+                        .flatMapConcat { chatMessages ->
+                            Log.d(
+                                "Agent",
+                                "buildUseCaseFlow: observing ${chatMessages.size} messages"
+                            )
 
                             val unAnsweredUserMessages =
                                 chatMessages.filter { !it.answered && it.isUserMessage }
 
-                            if (unAnsweredUserMessages.isEmpty())
-                                flowOf(AIState.COMPLETED)
-                            else
+                            if (unAnsweredUserMessages.isEmpty()) {
+                                flowOf(AIState.READY)
+                            } else {
                                 handleChatMessages(chatMessages = chatMessages)
-
+                            }
                         }
-                else
+                } else {
                     flowOf(aIState)
+                }
             }
 
     fun stop() {
         jobGenerateCompletion?.cancel()
         jobMessageUpdate?.cancel()
+        chatSession?.close()
+        chatSession = null
     }
 
     private fun getChatMessages(): Flow<List<ChatMessageEntity>> =
@@ -194,6 +201,22 @@ class RunMediaPipeUseCase(
             .build()
 
         llmInference = LlmInference.createFromOptions(context, options)
+
+        createChatSession()
+
+        trySend(AIState.READY)
+
+        awaitClose {
+            llmInference?.close()
+            llmInference = null
+            chatSession?.close()
+            chatSession = null
+        }
+    }
+
+    private fun createChatSession() {
+        chatSession?.close()
+
         val llmInferenceBackend = LlmInferenceBackend(llmInference, GemmaFormatter())
 
         val toolBuilder = Tool.newBuilder()
@@ -207,7 +230,14 @@ class RunMediaPipeUseCase(
             .setRole("system")
             .addParts(
                 Part.newBuilder()
-                    .setText("You are a context-aware offline Android assistant equipped with local tools.")
+                    .setText(
+                        "You are a context-aware offline Android assistant equipped with local tools. " +
+                                "CRITICAL INSTRUCTION: " +
+                                "\n1. For any questions about current events, prices (like BTC, Gold, Stocks), " +
+                                "weather, or real-time data, you MUST use the 'web_search' tool. " +
+                                "\n2. Do NOT guess or provide info from your training data for real-time facts. " +
+                                "\n3. If the user asks for their schedule or events, you MUST use the 'view_calendar' tool. "
+                    )
             )
             .build()
 
@@ -220,13 +250,6 @@ class RunMediaPipeUseCase(
 
         // Generate the tracking ChatSession instance from the model parent
         chatSession = generativeModel.startChat()
-
-        trySend(AIState.READY)
-
-        awaitClose {
-            llmInference?.close()
-            llmInference = null
-        }
     }
 
     /**
@@ -259,24 +282,17 @@ class RunMediaPipeUseCase(
 
                 val userText = chatMessages.last().text
 
-
-                /*val finalPrompt: String = PromptWrapper.createPrompt(
-                    skillsTxt = skillsTxt,
-                    userMessage = userText,
-                    history = chatMessages.toDomain()
-                )*/
-
-
-
                 emit(AIState.THINKING)
 
                 val answerTextBuilder = StringBuilder()
-
 
                 // Moved generation and completion handling to a separate function
                 /* handlePrompt(finalPrompt, aiAnswerMessage, answerTextBuilder) {
                      this@flow.emit(AIState.COMPLETED)
                  }*/
+
+                if (chatSession == null)
+                    createChatSession()
 
                 processAgentTurn(
                     chatSession!!,
@@ -284,6 +300,11 @@ class RunMediaPipeUseCase(
                     aiAnswerMessage,
                     answerTextBuilder
                 )
+
+                delay(1000)
+
+                jobMessageUpdate?.cancel()
+                emit(AIState.COMPLETED)
 
                 // Handle SKILL triggers from LLM response
                 //  findAndHandleTriggers(answerTextBuilder.toString())
@@ -407,45 +428,6 @@ class RunMediaPipeUseCase(
     private fun loadAvailableSkills(): List<AgentSkill> =
         skillLoader.loadSkillsFromAssets()
 
-    /*
-    private suspend fun findAndHandleTriggers(answer: String) {
-        Log.i(this@RunMediaPipeUseCase.javaClass.name, "findAndHandleTriggers: $answer")
-        // Implementation for finding and handling triggers
-        when {
-            answer.contains("TRIGGER_WEB_SEARCH", ignoreCase = true) -> {
-                val searchRegex = Regex("""TRIGGER_WEB_SEARCH\("([^"]+)"\)""")
-                val searchMatch = searchRegex.find(answer)
-                if (searchMatch != null) {
-                    val query = searchMatch.groupValues[1]
-                    ToolSnippet.fetchSearchSnippet(query).also { searchResult ->
-
-                        val followUpPrompt = """
-                The user asked a question requiring real-time data. 
-                Web search results for '$query':
-                ---
-                $searchResult
-                ---
-                Using this information, provide a short, conversational response to the user.
-                """.trimIndent()
-
-                        Log.i(
-                            this@RunMediaPipeUseCase.javaClass.name,
-                            "findAndHandleTriggers: followUpPrompt = $followUpPrompt"
-                        )
-
-                        //TODO: complete handling the prompt here
-                        /* handlePrompt(
-
-                          )
-  */
-                    }
-                }
-            }
-        }
-    }
-
-     */
-
     private suspend fun processAgentTurn(
         session: ChatSession,
         userInput: String,
@@ -455,6 +437,7 @@ class RunMediaPipeUseCase(
         // 1. Send the initial user message
         var response: GenerateContentResponse = session.sendMessage(userInput)
 
+        Log.i("Agent", "processAgentTurn: response has functions: ${response.hasFunctionCalls()}")
         Log.i("Agent", "processAgentTurn: response: ${response}")
 
         // 2. Multi-step execution loop
@@ -505,6 +488,8 @@ class RunMediaPipeUseCase(
         // 5. Final output
         // Once the LLM is done with tools, it provides a final synthesized text response.
         val finalResult = response.text()
+
+        Log.d("Agent", "processAgentTurn: resp text: $finalResult")
 
         synchronized(answerTextBuilder) {
             answerTextBuilder.append(finalResult)
