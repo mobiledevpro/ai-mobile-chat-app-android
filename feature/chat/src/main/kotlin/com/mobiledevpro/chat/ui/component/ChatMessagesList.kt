@@ -117,6 +117,8 @@ fun ChatMessagesList(
                         AIState.SUMMARIZING_CHUNKS -> stringResource(R.string.message_thinking_chunks)
                         AIState.DOWNLOADING_MODEL -> stringResource(R.string.message_downloading)
                         AIState.EXTRACTING_TEXT -> stringResource(R.string.message_extraction)
+                        AIState.WEB_SEARCH -> stringResource(R.string.message_web_search)
+                        AIState.CHECKING_CALENDAR -> stringResource(R.string.message_checking_calendar)
                         AIState.ERROR -> "Something went wrong with LLM initialization. Try to reinstall the app."
                         else -> ""
                     }

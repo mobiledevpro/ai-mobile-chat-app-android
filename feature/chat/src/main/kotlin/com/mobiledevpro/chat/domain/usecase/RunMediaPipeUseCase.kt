@@ -38,7 +38,6 @@ import com.mobiledevpro.chat.domain.model.AgentSkill
 import com.mobiledevpro.chat.domain.model.PromptWrapper
 import com.mobiledevpro.chat.ext.functionCalls
 import com.mobiledevpro.chat.ext.getArgument
-import com.mobiledevpro.chat.ext.hasFunctionCalls
 import com.mobiledevpro.chat.ext.text
 import com.mobiledevpro.chat.util.SkillLoader
 import com.mobiledevpro.coroutines.BaseCoroutinesFLowUseCase
@@ -283,14 +282,16 @@ class RunMediaPipeUseCase(
 
                 val answerTextBuilder = StringBuilder()
 
-                if (chatSession == null)
-                    createChatSession()
+                chatSession ?: createChatSession()
 
-                processAgentTurn(
-                    chatSession!!,
-                    userText,
-                    aiAnswerMessage,
-                    answerTextBuilder
+                handleUserPrompt(
+                    session = chatSession!!,
+                    userInput = userText,
+                    aiAnswerMessage = aiAnswerMessage,
+                    answerTextBuilder = answerTextBuilder,
+                    onStateChanged = { state ->
+                        emit(state)
+                    }
                 )
 
                 delay(1000)
@@ -336,19 +337,19 @@ class RunMediaPipeUseCase(
     private fun loadAvailableSkills(): List<AgentSkill> =
         skillLoader.loadSkillsFromAssets()
 
-    private suspend fun processAgentTurn(
+    private suspend fun handleUserPrompt(
         session: ChatSession,
         userInput: String,
         aiAnswerMessage: ChatMessageEntity,
-        answerTextBuilder: StringBuilder
+        answerTextBuilder: StringBuilder,
+        onStateChanged: suspend (AIState) -> Unit
     ) {
         // 1. Send the initial user message
         var response: GenerateContentResponse = session.sendMessage(userInput)
 
-        Log.i("Agent", "processAgentTurn: response has functions: ${response.hasFunctionCalls()}")
         Log.i("Agent", "processAgentTurn: response: $response")
 
-        // 2. Multi-step execution loop
+        // 2. Parsing the response
         //  while (true) {
         val parts = mutableListOf<Part>()
 
@@ -367,14 +368,14 @@ class RunMediaPipeUseCase(
             // Process formal calls
             for (call in formalCalls) {
                 Log.i("Agent", "Executing formal tool: ${call.name}")
-                resultText = executeTool(call.name, call.getArgument("query"))
+                resultText = executeTool(call.name, call.getArgument("query"), onStateChanged)
                 // parts.add(createFunctionResponsePart(call.name, resultText))
             }
 
             // Process manual calls
             for (call in manualCalls) {
                 Log.i("Agent", "Executing manual tool: ${call.first}")
-                resultText = executeTool(call.first, call.second)
+                resultText = executeTool(call.first, call.second, onStateChanged)
                 Log.d("Agent", "processAgentTurn: manualCalls resultText: $resultText")
                 // parts.add(createFunctionResponsePart(call.first, resultText))
             }
@@ -414,13 +415,21 @@ class RunMediaPipeUseCase(
         }.toList()
     }
 
-    private suspend fun executeTool(name: String, query: String): String {
+    private suspend fun executeTool(
+        name: String,
+        query: String,
+        onStateChanged: suspend (AIState) -> Unit
+    ): String {
         return when (name) {
             "web_search" -> {
+                onStateChanged(AIState.WEB_SEARCH)
                 ToolSnippet.fetchSearchSnippet(query)
             }
 
-            "view_calendar" -> "Sorry View Calendar hasn't been implemented yet."
+            "view_calendar" -> {
+                onStateChanged(AIState.CHECKING_CALENDAR)
+                "Sorry View Calendar hasn't been implemented yet."
+            }
             else -> "Error: Tool not found"
         }
     }

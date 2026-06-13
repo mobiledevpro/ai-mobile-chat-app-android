@@ -16,6 +16,8 @@
     <string name="message_thinking">Thinking…</string>
     <string name="message_thinking_chunks">Thinking… Analyzing chunks</string>
     <string name="message_extraction">Extracting text…</string>
+    <string name="message_web_search">Searching in web…</string>
+    <string name="message_checking_calendar">Checking calendar…</string>
 
 
 </resources>

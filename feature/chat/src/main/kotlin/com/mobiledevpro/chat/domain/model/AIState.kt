@@ -26,6 +26,8 @@ enum class AIState {
     THINKING,
     SUMMARIZING_CHUNKS,
     EXTRACTING_TEXT,
+    WEB_SEARCH,
+    CHECKING_CALENDAR,
     COMPLETED,
     ERROR
 }
@@ -36,4 +38,6 @@ fun AIState.isBusy(): Boolean =
             this == AIState.THINKING ||
             this == AIState.SUMMARIZING_CHUNKS ||
             this == AIState.EXTRACTING_TEXT ||
+            this == AIState.WEB_SEARCH ||
+            this == AIState.CHECKING_CALENDAR ||
             this == AIState.ERROR
