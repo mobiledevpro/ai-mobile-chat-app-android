@@ -4,13 +4,17 @@ This is a modern Android application that demonstrates on-device LLM inference u
 and Google AI Edge Local Agents. It features a conversational interface with support for native tool
 triggering (skills) like web search and calendar viewing.
 
+The app uses Skill.md to declare AI Tools: `view_calendar` and `web_search`.
+SKILLs are placed in `feature/chat/src/main/assets`
+`chat/util/SkillLoader.kt` is used to find and parse Skills.
+
 ## Getting Started for Developers
 
 Follow these steps to set up the project on your local machine.
 
 ### 1. Install Android Studio
 
-Download and install the latest stable version
+Download and install the latest stable version `Android Studio Quail 1`
 of [Android Studio](https://developer.android.com/studio) (Ladybug or newer recommended).
 
 ### 2. Clone or Unzip the Project
@@ -82,6 +86,12 @@ The project follows a modular architecture:
      or newer).
 2. Select the `app` configuration in Android Studio.
 3. Click **Run**.
-4. Upon opening the Chat, the app will automatically start downloading the LLM model (~1.3GB). You
+4. Upon opening the Chat, the app will automatically start downloading the LLM model (~700MB). You
    can track the progress on the screen.
 
+## Issues:
+
+1. A new Gemma 4 LLM doesn't work with MediaPipe engine. It requires LiteRT engine (more advanced
+   implementation).
+2. Sometimes LLM hallucinates when asking about agenda, view calendar instead of using '
+   view_calendar' tool
