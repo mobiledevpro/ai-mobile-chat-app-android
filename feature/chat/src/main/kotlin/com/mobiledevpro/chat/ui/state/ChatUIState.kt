@@ -2,6 +2,7 @@ package com.mobiledevpro.chat.ui.state
 
 import com.mobiledevpro.chat.domain.model.AIState
 import com.mobiledevpro.chat.domain.model.ChatMessageCollection
+import com.mobiledevpro.chat.domain.model.PredefinedPrompt
 import com.mobiledevpro.chat.domain.model.Skill
 import com.mobiledevpro.ui.state.UIState
 
@@ -13,6 +14,7 @@ sealed interface ChatUIState : UIState {
         val messageCollection : ChatMessageCollection = ChatMessageCollection(),
         val aiState: AIState = AIState.IDLE,
         val warningMessage: String = "",
-        val availableSkills: List<Skill> = emptyList()
+        val availableSkills: List<Skill> = emptyList(),
+        val predefinedPrompts: List<PredefinedPrompt> = emptyList()
     ) : ChatUIState
 }

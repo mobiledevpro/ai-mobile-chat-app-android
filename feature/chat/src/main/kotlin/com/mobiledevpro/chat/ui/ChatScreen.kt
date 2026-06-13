@@ -101,14 +101,16 @@ fun ChatScreen(
                     )
 
                 is ChatUIState.Success -> {
+                    val successState = (state as ChatUIState.Success)
                     Chat(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
                             .navigationBarsPadding(),
-                        messageCollection = (state as ChatUIState.Success).messageCollection,
-                        warningMessage = (state as ChatUIState.Success).warningMessage,
-                        aiState = (state as ChatUIState.Success).aiState,
+                        messageCollection = successState.messageCollection,
+                        warningMessage = successState.warningMessage,
+                        aiState = successState.aiState,
+                        predefinedPromptList = { successState.predefinedPrompts },
                         onSendPrompt = onSendPrompt
                     )
                 }

@@ -21,6 +21,7 @@ import androidx.lifecycle.viewModelScope
 import com.mobiledevpro.chat.domain.model.AIState
 import com.mobiledevpro.chat.domain.model.ChatMessage
 import com.mobiledevpro.chat.domain.model.ChatMessageCollection
+import com.mobiledevpro.chat.domain.model.PredefinedPrompt
 import com.mobiledevpro.chat.domain.model.Skill
 import com.mobiledevpro.chat.domain.model.SkillType
 import com.mobiledevpro.chat.domain.model.toLocalPath
@@ -100,7 +101,8 @@ class ChatViewModel(
                 ),
                 aiState = aiState,
                 warningMessage = errorMessage,
-                availableSkills = getAvailableSkills()
+                availableSkills = getAvailableSkills(),
+                predefinedPrompts = getPredefinedPromptList()
             )
 
         }.flowOn(Dispatchers.IO)
@@ -147,4 +149,12 @@ class ChatViewModel(
                 path = skillType.toLocalPath()
             )
         }
+
+    private fun getPredefinedPromptList(): List<PredefinedPrompt> =
+        listOf(
+            PredefinedPrompt("Tell me a joke"),
+            PredefinedPrompt("Tell me a historical fact"),
+            PredefinedPrompt("Search for BTC price"),
+            PredefinedPrompt("What's my schedule today")
+        )
 }
