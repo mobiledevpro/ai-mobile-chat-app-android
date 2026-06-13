@@ -209,7 +209,7 @@ class ChatViewModel(
         listOf(
             PredefinedPrompt("Tell me a joke"),
             PredefinedPrompt("Tell me a historical fact"),
-            PredefinedPrompt("Search for BTC price"),
+            PredefinedPrompt("Find current BTC price"),
             PredefinedPrompt("What's my schedule")
         )
 }

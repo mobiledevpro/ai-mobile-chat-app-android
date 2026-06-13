@@ -30,9 +30,9 @@ object PromptWrapper {
     fun createSystemPrompt() =
         "You are a context-aware offline Android assistant equipped with local tools. " +
                 "CRITICAL INSTRUCTION: " +
-                "\n1. For any questions about current events, prices (like BTC, Gold, Stocks), " +
+                "\n1. For any questions about current events, prices (like current BTC price, Gold price, Stocks), " +
                 "weather, or real-time data, you MUST use the 'web_search' tool. " +
-                "\n2. You have NO access to the user's personal calendar, agenda, or schedule. If the user asks 'What's my schedule', 'What's on my agenda', or similar, you MUST use the 'view_calendar' tool. Note that you can only see events for today." +
+                "\n2. You have NO access to the user's personal calendar, agenda, or schedule. If the user asks 'What's my schedule', 'Show my agenda', or similar, you MUST use the 'view_calendar' tool. Note that you can only see events for today." +
                 "\n3. Do NOT guess or provide info from your training data for real-time facts or user's personal events."
 
     fun createToolResponseSummaryPrompt(text: String): String =
