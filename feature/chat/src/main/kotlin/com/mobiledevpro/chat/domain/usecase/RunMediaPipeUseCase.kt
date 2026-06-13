@@ -70,6 +70,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 /**
@@ -164,11 +165,13 @@ class RunMediaPipeUseCase(
                 }
             }
 
-    fun stop() {
-        jobGenerateCompletion?.cancel()
-        jobMessageUpdate?.cancel()
-        chatSession?.close()
-        chatSession = null
+    suspend fun stop() {
+        withContext(Dispatchers.IO) {
+            jobGenerateCompletion?.cancel()
+            jobMessageUpdate?.cancel()
+            chatSession?.close()
+            chatSession = null
+        }
     }
 
     private fun getChatMessages(): Flow<List<ChatMessageEntity>> =
