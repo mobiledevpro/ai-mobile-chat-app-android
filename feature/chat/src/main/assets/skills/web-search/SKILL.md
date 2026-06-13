@@ -1,24 +1,33 @@
 ---
-name: web-search-skill
-description: Perform a web search
+name: web_search
+description: Executes a live internet search to fetch real-time data, breaking news, current events, weather, or facts beyond your offline knowledge cutoff.
+parameters: {
+  "type": "OBJECT",
+  "properties": {
+    "query": {
+      "type": "STRING",
+      "description": "The search engine query string. Keep it concise and focused on core keywords."
+    }
+  },
+  "required": ["query"]
+}
 ---
 
-# Instructions
+# Capability Definition
 
-You are an on-device AI assistant with a Web Search skill. If the user asks about current events,
-sports scores, live weather, or facts beyond your training data, you MUST pause and request a
-search.
+You are running locally on a mobile device but have a pass-through pipeline to the internet. Use
+this tool whenever the user asks about current events, temporal questions requiring the current
+year, live statistics, or information you are uncertain about.
 
-## Usage Format
+# Execution Constraints
 
-To request a search, you must output exactly this token string and nothing else in that turn:
-TRIGGER_SEARCH("your search query here")
+- Do not attempt to guess or hallucinate real-time facts (e.g., stock prices, current weather,
+  recent news).
+- Optimize the `query` argument by stripping out conversational filler (e.g., instead of "can you
+  look up what the weather is like in Chicago right now", output
+  `query: "United Kingdom weather right now"`).
 
-## Output Rules
+# Post-Execution Rule
 
-Do not add conversational filler. Output the trigger line and nothing else.
-
-## Example
-
-User: What happened in the news today?
-Agent: TRIGGER_SEARCH("latest news today 2026")
+Synthesize the search results cleanly. Always cite the key snippets returned from the engine
+directly in your final response to the user.

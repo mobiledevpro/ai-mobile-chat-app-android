@@ -48,7 +48,8 @@ espresso-core = "3.6.1"
 # 3rd party libs
 lottie = "6.6.7"
 desugaring = "2.1.5"
-mediapipe = "0.10.35"
+mediapipe = "0.10.27"
+ai-local-agents = "0.1.0"
 jsoup = "1.17.2"
 okhttp = "5.4.0"
 
@@ -108,6 +109,7 @@ espresso-core = { group = "androidx.test.espresso", name = "espresso-core", vers
 #3rd party libs
 lottie = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
 mediapipe = { module = "com.google.mediapipe:tasks-genai", version.ref = "mediapipe" }
+ai-local-agents = { module = "com.google.ai.edge.localagents:localagents-fc", version.ref = "ai-local-agents" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 okhttp-logging = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "okhttp" }

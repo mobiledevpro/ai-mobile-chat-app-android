@@ -111,6 +111,7 @@ fun ChatScreen(
                         warningMessage = successState.warningMessage,
                         aiState = successState.aiState,
                         predefinedPromptList = { successState.predefinedPrompts },
+                        availableSkills = { successState.availableSkills },
                         onSendPrompt = onSendPrompt
                     )
                 }

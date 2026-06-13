@@ -5,7 +5,7 @@ import com.mobiledevpro.chat.domain.usecase.GetChatMessagesUseCase
 import com.mobiledevpro.chat.domain.usecase.RunMediaPipeUseCase
 import com.mobiledevpro.chat.domain.usecase.SendMessageUseCase
 import com.mobiledevpro.chat.ui.vm.ChatViewModel
-import com.mobiledevpro.chat.util.SkillParser
+import com.mobiledevpro.chat.util.SkillLoader
 import org.koin.core.module.dsl.scopedOf
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
@@ -14,7 +14,7 @@ import org.koin.dsl.module
 val featureChatModule = module {
     scope<ChatViewModel> {
         viewModelOf(::ChatViewModel)
-        scopedOf(::SkillParser)
+        scopedOf(::SkillLoader)
         scopedOf(::GetChatMessagesUseCase)
         scopedOf(::SendMessageUseCase)
         scopedOf(::ClearHistoryUseCase)

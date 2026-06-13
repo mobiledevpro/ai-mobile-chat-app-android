@@ -22,18 +22,16 @@ import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.mobiledevpro.chat.domain.model.AIState
+import com.mobiledevpro.chat.domain.model.AgentSkill
 import com.mobiledevpro.chat.domain.model.ChatMessage
 import com.mobiledevpro.chat.domain.model.ChatMessageCollection
 import com.mobiledevpro.chat.domain.model.PredefinedPrompt
-import com.mobiledevpro.chat.domain.model.Skill
-import com.mobiledevpro.chat.domain.model.SkillType
-import com.mobiledevpro.chat.domain.model.toLocalPath
-import com.mobiledevpro.chat.domain.model.toName
 import com.mobiledevpro.chat.domain.usecase.ClearHistoryUseCase
 import com.mobiledevpro.chat.domain.usecase.GetChatMessagesUseCase
 import com.mobiledevpro.chat.domain.usecase.RunMediaPipeUseCase
 import com.mobiledevpro.chat.domain.usecase.SendMessageUseCase
 import com.mobiledevpro.chat.ui.state.ChatUIState
+import com.mobiledevpro.chat.util.SkillLoader
 import com.mobiledevpro.download.DownloadManagerHelper
 import com.mobiledevpro.download.DownloadManagerHelper.downloadWorkRequest
 import com.mobiledevpro.download.worker.DownloadWorker
@@ -59,7 +57,8 @@ class ChatViewModel(
     private val clearHistoryUseCase: ClearHistoryUseCase,
     private val runAiUseCase: RunMediaPipeUseCase,
     private val workManager: WorkManager,
-    private val fileStoreManager: FileStoreManager
+    private val fileStoreManager: FileStoreManager,
+    private val skillLoader: SkillLoader
 ) : BaseViewModel<ChatUIState>() {
 
     private val _newMessageFlow = MutableStateFlow<ChatMessage?>(null)
@@ -68,11 +67,15 @@ class ChatViewModel(
     private val _errorFlow = MutableStateFlow<Throwable?>(null)
     private val errorFlow = _errorFlow.asStateFlow()
 
+    private val _skillsFlow = MutableStateFlow<List<AgentSkill>>(emptyList())
+    private val skillsFlow = _skillsFlow.asStateFlow()
+
     private val downloadWorkInfoFlow: Flow<WorkInfo?> = workManager
         .getWorkInfoByIdFlow(downloadWorkRequest.id)
 
     init {
         checkLLMFile()
+        loadSkills()
     }
 
     override val initialState: ChatUIState
@@ -125,10 +128,15 @@ class ChatViewModel(
                 ),
                 aiState = aiState,
                 warningMessage = errorMessage,
-                availableSkills = getAvailableSkills(),
                 predefinedPrompts = getPredefinedPromptList()
             )
 
+        }.combine(skillsFlow) { chatUIState, skills ->
+            if (chatUIState is ChatUIState.Success) {
+                chatUIState.copy(availableSkills = skills)
+            } else {
+                chatUIState
+            }
         }.flowOn(Dispatchers.IO)
     }
 
@@ -181,14 +189,21 @@ class ChatViewModel(
         }
     }
 
-    private fun getAvailableSkills(): List<Skill> =
-        SkillType.entries.map { skillType ->
-            Skill(
-                type = skillType,
-                name = skillType.toName(),
-                path = skillType.toLocalPath()
-            )
+    private fun loadSkills() {
+        viewModelScope.launch(Dispatchers.IO) {
+            skillLoader.loadSkillsFromAssets().also { skills ->
+                _skillsFlow.value = skills
+
+                skills.forEach { skill ->
+                    Log.d(
+                        this@ChatViewModel.javaClass.name,
+                        "getAvailableSkills: SKILL : ${skill.name}"
+                    )
+                }
+            }
         }
+    }
+
 
     private fun getPredefinedPromptList(): List<PredefinedPrompt> =
         listOf(

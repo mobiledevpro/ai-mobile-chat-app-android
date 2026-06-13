@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.mobiledevpro.chat.domain.model.AIState
+import com.mobiledevpro.chat.domain.model.AgentSkill
 import com.mobiledevpro.chat.domain.model.ChatMessage
 import com.mobiledevpro.chat.domain.model.ChatMessageCollection
 import com.mobiledevpro.chat.domain.model.PredefinedPrompt
@@ -52,6 +53,7 @@ internal fun Chat(
     warningMessage: String = "",
     aiState: AIState,
     predefinedPromptList: () -> List<PredefinedPrompt>,
+    availableSkills: () -> List<AgentSkill>,
     onSendPrompt: (String) -> Unit
 ) {
 
@@ -96,6 +98,7 @@ internal fun Chat(
                 .padding(top = 16.dp),
             enabled = !aiState.isBusy(),
             query = promptQuery,
+            availableSkills = availableSkills,
             onQueryChanged = { query ->
                 promptQuery = query
             },

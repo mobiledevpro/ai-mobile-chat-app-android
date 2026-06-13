@@ -25,12 +25,8 @@ import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
 import com.mobiledevpro.chat.domain.model.AIState
 import com.mobiledevpro.chat.domain.model.PromptWrapper
-import com.mobiledevpro.chat.domain.model.Skill
-import com.mobiledevpro.chat.domain.model.SkillType
-import com.mobiledevpro.chat.domain.model.toLocalPath
-import com.mobiledevpro.chat.domain.model.toName
 import com.mobiledevpro.chat.mapper.toDomain
-import com.mobiledevpro.chat.util.SkillParser
+import com.mobiledevpro.chat.util.SkillLoader
 import com.mobiledevpro.coroutines.BaseCoroutinesFLowUseCase
 import com.mobiledevpro.coroutines.None
 import com.mobiledevpro.database.AppDatabase
@@ -77,7 +73,7 @@ class RunMediaPipeUseCase(
     database: AppDatabase,
     private val context: Context,
     private val fileStoreManager: FileStoreManager,
-    private val skillParser: SkillParser,
+    private val skillParser: SkillLoader,
     private val workManager: WorkManager
 ) : BaseCoroutinesFLowUseCase<None, AIState>(Dispatchers.IO) {
 
@@ -364,19 +360,7 @@ class RunMediaPipeUseCase(
         }
     }
 
-    private fun loadAvailableSkills(): String? =
-        if (SkillType.entries.isEmpty())
-            null
-        else
-            SkillType.entries.map { skillType ->
-                Skill(
-                    type = skillType,
-                    name = skillType.toName(),
-                    path = skillType.toLocalPath()
-                )
-            }.joinToString(separator = "\n\n") { skill ->
-                skillParser.loadSkill(skill)
-            }
+    private fun loadAvailableSkills(): String? = null
 
     private suspend fun findAndHandleTriggers(answer: String) {
         Log.i(this@RunMediaPipeUseCase.javaClass.name, "findAndHandleTriggers: $answer")
