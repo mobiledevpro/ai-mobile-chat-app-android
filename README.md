@@ -95,3 +95,20 @@ The project follows a modular architecture:
    implementation).
 2. Sometimes LLM hallucinates when asking about agenda, view calendar instead of using '
    view_calendar' tool
+
+
+
+##
+## Author:
+
+<a href="https://github.com/dmitriy-chernysh" target="_blank">
+  <img src="https://s.gravatar.com/avatar/72c649d298a8f0f088fd0850e19b9147?s=400" width="70" align="left">
+</a>
+
+**Dmitri Chernysh**
+
+[![Patreon](https://img.shields.io/badge/-patreon-f2a09b?logo=patreon&logoColor=white&label=Join+Dev+Notes&style=for-the-badge)](https://patreon.com/mobiledevpro)
+[![Linkedin](https://img.shields.io/badge/-linkedin-0A66C2?logo=linkedin&logoColor=white&style=for-the-badge)](https://www.linkedin.com/in/dmitriychernysh/)
+[![Instagram](https://img.shields.io/badge/-instagram-E4405F?logo=instagram&message=Tech+insights+on&logoColor=white&style=for-the-badge)](https://www.instagram.com/mobiledevpro/)
+[![Youtube](https://img.shields.io/badge/-youtube-red?logo=youtube&message=Youtube&style=for-the-badge)](https://www.youtube.com/@mobiledevpro?sub_confirmation=1&utm_source=github_main_profile)
+[![Upwork](https://img.shields.io/badge/-upwork-14a800?logo=Upwork&logoColor=white&label=Hire+me&style=for-the-badge)](https://www.upwork.com/freelancers/dmitrich)
