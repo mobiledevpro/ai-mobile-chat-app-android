@@ -111,4 +111,4 @@ The project follows a modular architecture:
 [![Linkedin](https://img.shields.io/badge/-linkedin-0A66C2?logo=linkedin&logoColor=white&style=for-the-badge)](https://www.linkedin.com/in/dmitriychernysh/)
 [![Instagram](https://img.shields.io/badge/-instagram-E4405F?logo=instagram&message=Tech+insights+on&logoColor=white&style=for-the-badge)](https://www.instagram.com/mobiledevpro/)
 [![Youtube](https://img.shields.io/badge/-youtube-red?logo=youtube&message=Youtube&style=for-the-badge)](https://www.youtube.com/@mobiledevpro?sub_confirmation=1&utm_source=github_main_profile)
-[![Upwork](https://img.shields.io/badge/-upwork-14a800?logo=Upwork&logoColor=white&label=Hire+me&style=for-the-badge)](https://www.upwork.com/freelancers/dmitrich)
+[![Get in touch](https://img.shields.io/badge/-get%20in%20touch-blue?style=for-the-badge)](https://mobile-dev.pro/#contact)
