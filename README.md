@@ -1,3 +1,5 @@
+[![License: PolyForm Noncommercial](https://img.shields.io/badge/License-PolyForm_Noncommercial_1.0.0-blue.svg)](LICENSE.md)
+
 # AI Mobile Chat App
 
 This is a modern Android application that demonstrates on-device LLM inference using MediaPipe GenAI
@@ -7,6 +9,14 @@ triggering (skills) like web search and calendar viewing.
 The app uses Skill.md to declare AI Tools: `view_calendar` and `web_search`.
 SKILLs are placed in `feature/chat/src/main/assets`
 `chat/util/SkillLoader.kt` is used to find and parse Skills.
+
+## Personal & Portfolio Project
+
+This repository is source-available for learning, architecture review, and personal evaluation. It
+is **not** licensed for commercial redistribution, closed-source reselling, or app store publishing
+without explicit authorization.
+
+For commercial licensing or inquiries, please contact: `dmitriy.chernysh@mobile-dev.pro`.
 
 ## Getting Started for Developers
 
@@ -96,9 +106,35 @@ The project follows a modular architecture:
 2. Sometimes LLM hallucinates when asking about agenda, view calendar instead of using '
    view_calendar' tool
 
+---
 
+## ⚖️ License & Terms
 
-##
+This project is licensed under the **[PolyForm Noncommercial License 1.0.0](LICENSE.md)**.
+
+### Allowed
+
+- ✅ Reviewing and inspecting code for architectural and technical evaluation.
+- ✅ Building and running the app locally on your own devices for personal use.
+- ✅ Forking for educational experimentation, hobby use, or non-profit academic research.
+
+### Prohibited
+
+- ❌ Publishing this app (or derivatives) to Google Play, F-Droid, or any marketplace with
+  monetization (ads, in-app purchases, paid downloads).
+- ❌ Integrating this codebase into proprietary, enterprise, or closed-source commercial software.
+- ❌ Repackaging or white-labeling the code for client projects or commercial SaaS backends.
+
+### Commercial Licensing & Inquiries
+
+If you are interested in using this code, architecture, or features within a commercial product,
+please reach out directly:
+
+* **Contact:** [dmitriy.chernysh@mobile-dev.pro]
+* **GitHub:** [@dmitriy-chernysh](https://github.com/dmitriy-chernysh)
+
+---
+
 ## Author:
 
 <a href="https://github.com/dmitriy-chernysh" target="_blank">
@@ -120,5 +156,7 @@ Let's have a quick chat:
 [![Linkedin](https://img.shields.io/badge/-linkedin-0A66C2?logo=linkedin&logoColor=white&style=for-the-badge)](https://www.linkedin.com/in/dmitriychernysh/)
 [![Insagram](https://img.shields.io/badge/-instagram-e56969?logo=instagram&logoColor=white&style=for-the-badge)](https://instagram.com/mobiledevpro)
 [![Email](https://img.shields.io/badge/-Email-17273D?style=for-the-badge&logo=gmail&logoColor=white)](mailto:dmitriy.chernysh@mobile-dev.pro)
+
+---
 
 
