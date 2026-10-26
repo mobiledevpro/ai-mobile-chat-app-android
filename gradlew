@@ -1,5 +1,11 @@
 #!/usr/bin/env sh
 
+unset ANDROID_PREFS_ROOT
+if [ -d "/usr/lib/jvm/java-21-openjdk-amd64" ]; then
+    export JAVA_HOME="/usr/lib/jvm/java-21-openjdk-amd64"
+fi
+
+
 #
 # Copyright 2015 the original author or authors.
 #
